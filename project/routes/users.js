@@ -17,7 +17,7 @@ router.post('/register', async (req, res) => {
         required: true,
         schema: {
             name: " sdcklds",
-            email: "djaskdbas",
+            email: "GGGGG",
             password: "dcnsjkdc"
         }
     }

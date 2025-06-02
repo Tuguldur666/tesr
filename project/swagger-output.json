@@ -52,7 +52,7 @@
                 },
                 "email": {
                   "type": "string",
-                  "example": "djaskdbas"
+                  "example": "GGGGG"
                 },
                 "password": {
                   "type": "string",
