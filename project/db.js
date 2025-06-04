@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 async function connectToMongoDB() {
   try {
-    const conn = await mongoose.connect('mongodb://admin:1234@localhost:27017/test?authSource=admin', {
+    const conn = await mongoose.connect('mongodb+srv://apoxmn:3Y%40QPVHKtFqp9e6@cluster0.qizgffq.mongodb.net/test?retryWrites=true&w=majority', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -14,4 +14,4 @@ async function connectToMongoDB() {
   }
 }
 
-module.exports = {connectToMongoDB};
+module.exports = { connectToMongoDB };

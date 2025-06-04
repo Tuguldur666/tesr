@@ -26,8 +26,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Some summary...",
-        "description": "Some description...",
+        "summary": "User Registration",
+        "description": "Registers a new user with name, email, and password",
         "parameters": [
           {
             "name": "body",
@@ -38,11 +38,11 @@
               "properties": {
                 "name": {
                   "type": "string",
-                  "example": " gg"
+                  "example": "tuuguu"
                 },
                 "email": {
                   "type": "string",
-                  "example": "GGG"
+                  "example": "tuuguu@gmail.com"
                 },
                 "password": {
                   "type": "string",
@@ -79,7 +79,7 @@
               "properties": {
                 "email": {
                   "type": "string",
-                  "example": "GGG"
+                  "example": "apoxmn@gmail.com"
                 },
                 "password": {
                   "type": "string",
@@ -98,6 +98,58 @@
           },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/users/refresh": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Refresh access token",
+        "description": "Returns a new access token using the refresh token",
+        "parameters": [
+          {
+            "name": "x-refresh-token",
+            "in": "header",
+            "description": "Refresh token (optional for Swagger testing)",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/users/getuser": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user data",
+        "description": "Returns user details from access token. Token is passed in the Authorization header.",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Bearer access token",
+            "required": true,
+            "type": "string",
+            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
           }
         }
       }
