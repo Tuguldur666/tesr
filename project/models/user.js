@@ -17,6 +17,7 @@ const UserSchema = new mongoose.Schema({
 });
 
 
+
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   try {
@@ -34,10 +35,30 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
 };
 
 
-UserSchema.methods.generateToken = function () {
-  const payload = { id: this.id, email: this.email };
-  return jwt.sign(payload, 'JWT_SECRET', { expiresIn: '1h' });
+UserSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    { id: this._id, email: this.email },
+    process.env.ACCESS_TOKEN_SECRET,
+    { expiresIn: '10m' }
+  );
+ 
 };
+
+UserSchema.methods.generateReshreshToken = function () {
+  console.log(process.env.REFRESH_TOKEN_SECRET)
+  return jwt.sign(
+    { id: this._id, email: this.email },
+    process.env.REFRESH_TOKEN_SECRET,
+    { expiresIn: '1d' }
+  );
+
+};
+
+
+// UserSchema.methods.generateToken = function () {
+//   const payload = { id: this.id, email: this.email };
+//   return jwt.sign(payload, 'JWT_SECRET', { expiresIn: '1h' });
+// };
 
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
