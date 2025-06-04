@@ -4,9 +4,11 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerdoc = require('./swagger-output.json')
 const dotenv =require('dotenv');
 const cors = require('cors');
+const serverless = require('serverless-http');
 const cookieParser = require('cookie-parser');
 const app = express()
 const result = dotenv.config({path:"./config.env"})
+
 app.use(cors({
   origin: 'http://localhost:3001',
   credentials: true
@@ -38,4 +40,5 @@ connectToMongoDB().then((mongooseInstance) => {
 const userRouter  = require('./routes/users')
 
 app.use('/users' , userRouter)
+module.exports.handler = serverless(app);
 
