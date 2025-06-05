@@ -1,14 +1,16 @@
-const express = require('express')
-const {connectToMongoDB} = require('./config/db');
+const express = require('express');
+const { connectToMongoDB } = require('./config/db');
 const swaggerUi = require('swagger-ui-express');
-const swaggerdoc = require('./swagger-output.json')
+const swaggerdoc = require('./swagger-output.json');
 const errorHandler = require('./middleware/errorHandler');
-const dotenv =require('dotenv');
+const dotenv = require('dotenv');
 const cors = require('cors');
 const serverless = require('serverless-http');
 const cookieParser = require('cookie-parser');
-const app = express()
-const result = dotenv.config({path:"./config/config.env"})
+
+dotenv.config({ path: './config/config.env' });
+
+const app = express();
 
 app.use(cors({
   origin: 'http://localhost:3001',
@@ -17,23 +19,28 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true })); 
-app.set('view engine', 'ejs')
+app.use(express.urlencoded({ extended: true }));
+app.set('view engine', 'ejs');
+
+
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerdoc));
-app.use(errorHandler)
+
+
+const userRouter = require('./routes/users');
+app.use('/users', userRouter);
+
+
 app.get('/', (req, res) => {
   res.send('Hello from server.js!');
 });
 
-
+app.use(errorHandler);
 
 connectToMongoDB().then((mongooseInstance) => {
-  app.locals.db = mongooseInstance;
   app.listen(3001);
+  app.locals.db = mongooseInstance;
 });
 
-const userRouter  = require('./routes/users')
-app.use('/users' , userRouter)
-module.exports.handler = serverless(app);
 
+module.exports.handler = serverless(app);
 module.exports = app;
