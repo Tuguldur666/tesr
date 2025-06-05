@@ -35,3 +35,4 @@ const userRouter  = require('./routes/users')
 app.use('/users' , userRouter)
 module.exports.handler = serverless(app);
 
+module.exports = app;
