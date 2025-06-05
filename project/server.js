@@ -20,6 +20,9 @@ app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs')
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerdoc));
 
+app.get('/', (req, res) => {
+  res.send('Hello from server.js!');
+});
 
 
 
@@ -29,7 +32,6 @@ connectToMongoDB().then((mongooseInstance) => {
 });
 
 const userRouter  = require('./routes/users')
-
 app.use('/users' , userRouter)
 module.exports.handler = serverless(app);
 
