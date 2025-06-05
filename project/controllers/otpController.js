@@ -73,7 +73,7 @@ exports.verifyResetOtp = async (req, res) => {
       required: true,
       schema: {
         phoneNumber:99881175,
-        code: " ""
+        code: "dsfsdfsd"
 
       }
     }
@@ -97,7 +97,7 @@ exports.resetPass = async(req,res) => {
       required: true,
       schema: {
         phoneNumber:99881175,
-        newPassword:" "
+        newPassword:"sdfsdfdf"
 
       }
     }

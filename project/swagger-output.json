@@ -233,9 +233,32 @@
         ],
         "summary": "Send OTP for password reset",
         "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                },
+                "code": {
+                  "type": "string",
+                  "example": "dsfsdfsd"
+                }
+              }
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           }
         }
       }
@@ -261,7 +284,7 @@
                 },
                 "newPassword": {
                   "type": "string",
-                  "example": " "
+                  "example": "sdfsdfdf"
                 }
               }
             }
