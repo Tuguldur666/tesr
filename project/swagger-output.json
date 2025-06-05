@@ -192,6 +192,90 @@
           }
         }
       }
+    },
+    "/otp/forgot_pass": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Send OTP for password reset",
+        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/otp/verify_reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Send OTP for password reset",
+        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/otp/reset_password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Send OTP for password reset",
+        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                },
+                "newPassword": {
+                  "type": "string",
+                  "example": " "
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
     }
   }
 }
