@@ -11,16 +11,6 @@
     "http"
   ],
   "paths": {
-    "/users/": {
-      "get": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/users/register": {
       "post": {
         "tags": [
@@ -133,11 +123,6 @@
         "summary": "Get user data",
         "description": "Returns user details from access token. Token is passed in the Authorization header.",
         "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          },
           {
             "name": "Authorization",
             "in": "header",

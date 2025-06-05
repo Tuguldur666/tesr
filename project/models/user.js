@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const UserSchema = new mongoose.Schema({
-  id: Number,
   name: String,
   email: {
     type: String,
@@ -54,11 +53,6 @@ UserSchema.methods.generateReshreshToken = function () {
 
 };
 
-
-// UserSchema.methods.generateToken = function () {
-//   const payload = { id: this.id, email: this.email };
-//   return jwt.sign(payload, 'JWT_SECRET', { expiresIn: '1h' });
-// };
 
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
