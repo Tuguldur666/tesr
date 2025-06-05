@@ -13,8 +13,8 @@ dotenv.config({ path: './config/config.env' });
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:3001',
-  credentials: true
+  origin: true,          
+  credentials: true       
 }));
 
 app.use(express.json());
