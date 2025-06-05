@@ -2,6 +2,7 @@ const express = require('express')
 const {connectToMongoDB} = require('./config/db');
 const swaggerUi = require('swagger-ui-express');
 const swaggerdoc = require('./swagger-output.json')
+const errorHandler = require('./middleware/errorHandler');
 const dotenv =require('dotenv');
 const cors = require('cors');
 const serverless = require('serverless-http');
@@ -19,7 +20,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true })); 
 app.set('view engine', 'ejs')
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerdoc));
-
+app.use(errorHandler)
 app.get('/', (req, res) => {
   res.send('Hello from server.js!');
 });
