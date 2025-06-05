@@ -30,6 +30,7 @@ exports.registerUser = async (req, res) => {
     });
 
     return res.status(200).json({
+      success:true,
       message: result.message,
       accessToken,
     });
@@ -106,7 +107,7 @@ exports.refreshToken =  async (req, res) => {
     return res.status(result.status).json({ message: result.message });
   }
 
-  return res.status(result.status).json({ accessToken: result.accessToken });
+  return res.status(result.status).json({ success:true,accessToken: result.accessToken });
 }
 
 // ////////////////////////////////////////
