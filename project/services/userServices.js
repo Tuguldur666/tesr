@@ -1,38 +1,48 @@
 const User = require('../models/user');
+const otp = require('./otpServices');
 const jwt = require('jsonwebtoken');
 
-
-async function registerUser({ name, email, password }) {
+async function registerUser({ name, email, phoneNumber, password }) {
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return { success: false, message: 'User already exists' };
     }
 
-    const newUser = new User({
-      name,
-      email,
-      password
-    });
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.error("Phone number",phoneNumber)
 
+
+    const newUser = new User({ name, email, phoneNumber, password });
     await newUser.save();
+
+    const otpSent = await otp.sendMessage(newUser._id, phoneNumber, otpCode, 'verify');
+    if (!otpSent) {
+      return {
+        success: false,
+        message: 'Failed to send OTP. Registration aborted.',
+      };
+    }
 
     const accessToken = newUser.generateAccessToken();
     const refreshToken = newUser.generateReshreshToken();
 
     return {
       success: true,
-      message: 'User registered successfully',
-        accessToken,
-        refreshToken
+      message: 'User registered successfully. OTP sent.',
+      accessToken,
+      refreshToken,
     };
   } catch (err) {
-    console.error(process.env.ACCESS_TOKEN_SECRET)
-    console.error(process.env.REFRESH_TOKEN_SECRET)
     console.error('Error in registerUser:', err);
-    return { success: false, message: 'Registration failed due to server error' };
+    return {
+      success: false,
+      message: 'Registration failed due to server error',
+    };
   }
 }
+
+// /////////////////////////////////////////////
 
 async function loginUser({ email, password }) {
   try {
@@ -43,6 +53,9 @@ async function loginUser({ email, password }) {
     }
 
     const isMatch = await existingUser.comparePassword(password);
+    if (!existingUser.isVerified) {
+      return { success: false, message: 'User not verified. Please verify your account first.' };
+    }
 
     if (!isMatch) {
       return { success: false, message: 'Invalid email or password' };
@@ -65,7 +78,7 @@ async function loginUser({ email, password }) {
     return { success: false, message: 'Login failed' };
   }
 }
-
+// ///////////////////////////////////////////////////////
 
 async function refreshToken(req) {
   const refreshToken = req.cookies?.jwt;
@@ -99,6 +112,7 @@ async function refreshToken(req) {
     return { success: false, status: 403, message: 'Invalid or expired refresh token' };
   }
 }
+// //////////////////////////////////////////
 
 async function getUserData(req) {
   const authHeader = req.headers.authorization;

@@ -28,6 +28,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerdoc));
 
 const userRouter = require('./routes/users');
 app.use('/users', userRouter);
+const verifyRouter = require('./routes/otps');
+app.use('/otp', verifyRouter);
 
 
 app.get('/', (req, res) => {

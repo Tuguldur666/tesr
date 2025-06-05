@@ -1,5 +1,6 @@
 const service = require('../services/userServices')
 
+
 exports.registerUser = async (req, res) => {
   /*
   #swagger.tags = ['Users']
@@ -10,14 +11,15 @@ exports.registerUser = async (req, res) => {
       required: true,
       schema: {
           name: "tuuguu",
-          email: "tuuguu@gmail.com",
+          email: "tudu@gmail.com",
+          phoneNumber:99881175,
           password: "1234"
       }
   }
   */
 
-  const { name, email, password } = req.body;
-  const result = await service.registerUser({ name, email, password });
+  const { name, email,phoneNumber, password } = req.body;
+  const result = await service.registerUser({ name, email, phoneNumber,password });
 
   if (result.success) {
     const { accessToken, refreshToken } = result;
@@ -26,7 +28,7 @@ exports.registerUser = async (req, res) => {
       httpOnly: true,
       secure: false, 
       sameSite: 'None',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 24 * 60 * 60 * 1000, 
     });
 
     return res.status(200).json({
@@ -134,3 +136,7 @@ exports.getUserData = async (req, res) => {
 
   return res.status(result.status).json({ user: result.user });
 }
+
+// ////////////////////////////////////////////
+
+

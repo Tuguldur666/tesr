@@ -42,7 +42,11 @@
                 },
                 "email": {
                   "type": "string",
-                  "example": "tuuguu@gmail.com"
+                  "example": "tudu@gmail.com"
+                },
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
                 },
                 "password": {
                   "type": "string",
@@ -145,6 +149,46 @@
         "responses": {
           "default": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/otp/verify": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "User login",
+        "description": "Logs in a user with email and password",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                },
+                "code": {
+                  "type": "string",
+                  "example": "712329"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
