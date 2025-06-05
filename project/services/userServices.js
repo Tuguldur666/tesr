@@ -44,6 +44,9 @@ async function registerUser({ name, email, phoneNumber, password }) {
 
 // /////////////////////////////////////////////
 
+
+
+
 async function loginUser({ email, password }) {
   try {
     const existingUser = await User.findOne({ email });
@@ -149,6 +152,5 @@ async function getUserData(req) {
 
 
 
-module.exports = { registerUser, loginUser, refreshToken ,getUserData};
-
+module.exports = { registerUser, loginUser, refreshToken ,getUserData}
 

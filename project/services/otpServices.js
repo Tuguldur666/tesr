@@ -67,6 +67,105 @@ async function verifyUserByOtp({ phoneNumber, code }) {
     return { success: false, message: 'OTP verification failed' };
   }
 }
+// /////////////////////////////////////////////////
 
-module.exports = {verifyUserByOtp,sendMessage}
+async function forgotPassword({ phoneNumber }) {
+  try {
+    const user = await User.findOne({ phoneNumber });
+
+    if (!user) {
+      return { success: false, message: 'User with this phone number not found' };
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const otpSent = await Otp.sendMessage(user._id, phoneNumber, otpCode, 'reset');
+    if (!otpSent) {
+      return {
+        success: false,
+        message: 'Failed to send OTP. Please try again later.',
+      };
+    }
+
+    return {
+      success: true,
+      message: 'OTP sent successfully for password reset',
+    };
+  } catch (err) {
+    console.error('Error in forgotPassword:', err);
+    return {
+      success: false,
+      message: 'Failed to initiate password reset',
+    };
+  }
+}
+
+
+async function verifyResetOtp({ phoneNumber, code }) {
+  try {
+    const user = await User.findOne({ phoneNumber });
+
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    const otpEntry = await Otp.findOne({
+      userId: user._id,
+      code,
+      authType: 'reset'
+    });
+
+    if (!otpEntry) {
+      return { success: false, message: 'Invalid or expired OTP' };
+    }
+
+    await Otp.deleteMany({ userId: user._id, authType: 'reset' });
+
+    return {
+      success: true,
+      message: 'OTP verified successfully. You can now reset your password.',
+      userId: user._id 
+    };
+  } catch (err) {
+    console.error('Error verifying reset OTP:', err);
+    return { success: false, message: 'OTP verification failed' };
+  }
+}
+// /////////////////////////////////////////////////
+
+
+async function resetPass({ phoneNumber, newPassword }) {
+  try {
+    const user = await User.findOne({ phoneNumber });
+
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    if (!user.isVerified) {
+      return {
+        success: false,
+        message: 'User is not verified. Password reset is not allowed.'
+      };
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return {
+      success: true,
+      message: 'Password reset successfully'
+    };
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    return {
+      success: false,
+      message: 'Failed to reset password'
+    };
+  }
+}
+
+
+
+module.exports = {verifyUserByOtp,sendMessage,forgotPassword,verifyResetOtp,resetPass}
 
