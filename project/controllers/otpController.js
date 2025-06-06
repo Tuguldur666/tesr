@@ -105,7 +105,7 @@ exports.resetPass = async(req,res) => {
 
   const { phoneNumber, newPassword} = req.body;
 
-  const result = await optService.verifyResetOtp({ phoneNumber , newPassword});
+  const result = await optService.resetPass({ phoneNumber , newPassword});
 
   res.status(result.success ? 200 : 400).json(result);
 };

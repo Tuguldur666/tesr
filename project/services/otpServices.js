@@ -79,7 +79,7 @@ async function forgotPassword({ phoneNumber }) {
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const otpSent = await Otp.sendMessage(user._id, phoneNumber, otpCode, 'reset');
+    const otpSent = await sendMessage(user._id, phoneNumber, otpCode, 'reset');
     if (!otpSent) {
       return {
         success: false,
