@@ -43,13 +43,23 @@ async function sendMessage(userId, phoneNumber, code, authType) {
 
 async function verifyUserByOtp({ phoneNumber, code }) {
   try {
-    const user = await User.findOne({ phoneNumber });
+    // Find the latest unverified user with this phone number
+    const user = await User.findOne({ phoneNumber }).sort({ createdAt: -1 });
+
     if (!user) {
       return { success: false, message: 'User not found' };
     }
 
-    const otpEntry = await Otp.findOne({ userId: user._id, code, authType: 'verify' });
-    console.error(otpEntry)
+    if (user.isVerified) {
+      return { success: true, message: 'User is already verified' };
+    }
+
+    const otpEntry = await Otp.findOne({
+      userId: user._id,
+      code,
+      authType: 'verify',
+    });
+
     if (!otpEntry) {
       return { success: false, message: 'Invalid or expired OTP' };
     }
@@ -61,22 +71,22 @@ async function verifyUserByOtp({ phoneNumber, code }) {
     await user.save();
 
     return { success: true, message: 'User verified successfully' };
+
   } catch (err) {
-
     console.error('Error verifying OTP:', err);
-
     return { success: false, message: 'OTP verification failed' };
   }
 }
+
 // /////////////////////////////////////////////////
 
 
 async function forgotPassword({ phoneNumber }) {
   try {
-    const user = await User.findOne({ phoneNumber });
+    const user = await User.findOne({ phoneNumber, isVerified: true });
 
     if (!user) {
-      return { success: false, message: 'User with this phone number not found' };
+      return { success: false, message: 'Verified user with this phone number not found' };
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -95,24 +105,24 @@ async function forgotPassword({ phoneNumber }) {
     };
 
   } catch (err) {
-
     console.error('Error in forgotPassword:', err);
-
     return {
       success: false,
       message: 'Failed to initiate password reset',
     };
   }
 }
+
 // //////////////////////////////////////////////////////////////
 
 
 async function verifyResetOtp({ phoneNumber, code }) {
   try {
-    const user = await User.findOne({ phoneNumber });
+
+    const user = await User.findOne({ phoneNumber, isVerified: true })
 
     if (!user) {
-      return { success: false, message: 'User not found' };
+      return { success: false, message: 'Verified user not found' };
     }
 
     const otpEntry = await Otp.findOne({
@@ -130,16 +140,15 @@ async function verifyResetOtp({ phoneNumber, code }) {
     return {
       success: true,
       message: 'OTP verified successfully. You can now reset your password.',
-      userId: user._id 
+      userId: user._id
     };
 
   } catch (err) {
-    
     console.error('Error verifying reset OTP:', err);
-
     return { success: false, message: 'OTP verification failed' };
   }
 }
+
 // /////////////////////////////////////////////////
 
 

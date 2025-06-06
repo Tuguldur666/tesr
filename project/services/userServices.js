@@ -6,7 +6,9 @@ async function registerUser({ name, email, phoneNumber, password }) {
   try {
     const existingUser = await User.findOne({ email });
     const existingNumber = await User.findOne({ phoneNumber });
-    if (existingUser || existingNumber) {
+
+  
+    if ((existingUser && existingUser.verified) || (existingNumber && existingNumber.verified)) {
       return { success: false, message: 'User already exists' };
     }
 
@@ -64,6 +66,15 @@ async function loginUser({ email, password }) {
 
     if (!isMatch) {
       return { success: false, message: 'Invalid email or password' };
+    }
+
+    const verifiedUserExists = await User.findOne({ 
+      $or: [{ email: existingUser.email }, { phoneNumber: existingUser.phoneNumber }],
+      verified: true 
+    });
+    
+    if (!verifiedUserExists) {
+      return { success: false, message: 'User not verified. Please verify your account first.' };
     }
 
     const accessToken = existingUser.generateAccessToken();
