@@ -2,23 +2,42 @@ const User = require('../models/user');
 const otp = require('./otpServices');
 const jwt = require('jsonwebtoken');
 
+
+
 async function registerUser({ name, email, phoneNumber, password }) {
   try {
-    const existingUser = await User.findOne({ email });
-    const existingNumber = await User.findOne({ phoneNumber });
 
-  
-    if ((existingUser && existingUser.verified) || (existingNumber && existingNumber.verified)) {
-      return { success: false, message: 'User already exists' };
+    const verifiedEmailUser = await User.findOne({ email, isVerified: true });
+    const verifiedPhoneUser = await User.findOne({ phoneNumber, isVerified: true });
+
+    console.error(verifiedEmailUser,verifiedPhoneUser)
+
+    if (verifiedEmailUser || verifiedPhoneUser) {
+      return { success: false, message: 'User already exists with this email or phone number' };
     }
 
+    const existingUnverifiedUser = await User.findOne({
+      isVerified: false,
+      $or: [{ email }, { phoneNumber }]
+    }).sort({ createdAt: -1 });
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    console.error("Phone number",phoneNumber)
 
-    const newUser = new User({ name, email, phoneNumber, password });
-    await newUser.save();
+    let userToSave;
 
-    const otpSent = await otp.sendMessage(newUser._id, phoneNumber, otpCode, 'verify');
+    if (existingUnverifiedUser) {
+      existingUnverifiedUser.name = name;
+      existingUnverifiedUser.email = email;
+      existingUnverifiedUser.phoneNumber = phoneNumber;
+      existingUnverifiedUser.password = password;
+      userToSave = existingUnverifiedUser;
+    } else {
+      userToSave = new User({ name, email, phoneNumber, password });
+    }
+
+    await userToSave.save();
+
+    const otpSent = await otp.sendMessage(userToSave._id, phoneNumber, otpCode, 'verify');
     if (!otpSent) {
       return {
         success: false,
@@ -26,8 +45,8 @@ async function registerUser({ name, email, phoneNumber, password }) {
       };
     }
 
-    const accessToken = newUser.generateAccessToken();
-    const refreshToken = newUser.generateReshreshToken();
+    const accessToken = userToSave.generateAccessToken();
+    const refreshToken = userToSave.generateReshreshToken();
 
     return {
       success: true,
@@ -36,15 +55,15 @@ async function registerUser({ name, email, phoneNumber, password }) {
       refreshToken,
     };
   } catch (err) {
-
     console.error('Error in registerUser:', err);
-
     return {
       success: false,
       message: 'Registration failed due to server error',
     };
   }
 }
+
+
 
 // /////////////////////////////////////////////
 
