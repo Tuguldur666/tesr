@@ -12,7 +12,6 @@ async function registerUser({ name, email, phoneNumber, password }) {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     console.error("Phone number",phoneNumber)
 
-
     const newUser = new User({ name, email, phoneNumber, password });
     await newUser.save();
 
@@ -34,7 +33,9 @@ async function registerUser({ name, email, phoneNumber, password }) {
       refreshToken,
     };
   } catch (err) {
+
     console.error('Error in registerUser:', err);
+
     return {
       success: false,
       message: 'Registration failed due to server error',
@@ -67,7 +68,6 @@ async function loginUser({ email, password }) {
     const accessToken = existingUser.generateAccessToken();
     const refreshToken = existingUser.generateReshreshToken();
 
-    
     return {
       success: true,
       message: 'Successful login',
@@ -77,13 +77,16 @@ async function loginUser({ email, password }) {
     };
 
   } catch (err) {
+
     console.error('Error in login:', err);
+
     return { success: false, message: 'Login failed' };
   }
 }
 // ///////////////////////////////////////////////////////
 
 async function refreshToken(req) {
+
   const refreshToken = req.cookies?.jwt;
   console.log('Refresh token from cookie:', refreshToken);
 
@@ -111,7 +114,9 @@ async function refreshToken(req) {
       accessToken: newAccessToken
     };
   } catch (err) {
+
     console.error('Refresh error:', err);
+
     return { success: false, status: 403, message: 'Invalid or expired refresh token' };
   }
 }
@@ -130,7 +135,7 @@ async function getUserData(req) {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     console.log('Decoded access token:', decoded);
 
-    const user = await User.findById(decoded.id).select('-password'); // Exclude password
+    const user = await User.findById(decoded.id).select('-password'); 
     if (!user) {
       return { success: false, status: 404, message: 'User not found' };
     }
@@ -145,7 +150,9 @@ async function getUserData(req) {
       }
     };
   } catch (err) {
+
     console.error('Access token error:', err);
+
     return { success: false, status: 403, message: 'Invalid or expired access token' };
   }
 }

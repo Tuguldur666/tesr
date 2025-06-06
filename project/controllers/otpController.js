@@ -2,7 +2,6 @@ const optService = require('../services/otpServices')
 
 
 exports.verifyUser = async (req, res) => {
-
       /*
   #swagger.tags = ['Users']
   #swagger.summary = 'User login'
@@ -30,14 +29,18 @@ exports.verifyUser = async (req, res) => {
   try {
     const result = await optService.verifyUserByOtp({ phoneNumber, code });
     return res.status(result.success ? 200 : 400).json(result);
+
   } catch (err) {
+
     console.error('Controller error in verifyUser:', err);
+    
     return res.status(500).json({
       success: false,
       message: 'Server error while verifying user',
     });
   }
 };
+// //////////////////////////////////////////////////////////////
 
 
 exports.forgotPass = async (req, res) => {

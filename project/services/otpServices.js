@@ -19,7 +19,6 @@ async function sendMessage(userId, phoneNumber, code, authType) {
 
     console.log('[OTP API Response]:', response.data);
 
-  
     const result = Array.isArray(response.data)
       ? response.data[0]?.Result
       : response.data?.Result;
@@ -39,7 +38,7 @@ async function sendMessage(userId, phoneNumber, code, authType) {
     return false;
   }
 }
-
+// ////////////////////////////////////////////////////////////////////
 
 
 async function verifyUserByOtp({ phoneNumber, code }) {
@@ -63,11 +62,14 @@ async function verifyUserByOtp({ phoneNumber, code }) {
 
     return { success: true, message: 'User verified successfully' };
   } catch (err) {
+
     console.error('Error verifying OTP:', err);
+
     return { success: false, message: 'OTP verification failed' };
   }
 }
 // /////////////////////////////////////////////////
+
 
 async function forgotPassword({ phoneNumber }) {
   try {
@@ -91,14 +93,18 @@ async function forgotPassword({ phoneNumber }) {
       success: true,
       message: 'OTP sent successfully for password reset',
     };
+
   } catch (err) {
+
     console.error('Error in forgotPassword:', err);
+
     return {
       success: false,
       message: 'Failed to initiate password reset',
     };
   }
 }
+// //////////////////////////////////////////////////////////////
 
 
 async function verifyResetOtp({ phoneNumber, code }) {
@@ -126,8 +132,11 @@ async function verifyResetOtp({ phoneNumber, code }) {
       message: 'OTP verified successfully. You can now reset your password.',
       userId: user._id 
     };
+
   } catch (err) {
+    
     console.error('Error verifying reset OTP:', err);
+
     return { success: false, message: 'OTP verification failed' };
   }
 }
@@ -157,7 +166,9 @@ async function resetPass({ phoneNumber, newPassword }) {
       message: 'Password reset successfully'
     };
   } catch (err) {
+
     console.error('Error resetting password:', err);
+    
     return {
       success: false,
       message: 'Failed to reset password'
