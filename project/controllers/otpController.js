@@ -56,6 +56,7 @@ exports.forgotPass = async (req, res) => {
       }
     }
   */
+console.log("Received phoneNumber (type and value):", typeof phoneNumber, phoneNumber);
 
   const { phoneNumber } = req.body;
 
