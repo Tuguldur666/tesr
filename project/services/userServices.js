@@ -67,32 +67,20 @@ async function registerUser({ name, email, phoneNumber, password }) {
 
 // /////////////////////////////////////////////
 
-
-
-
 async function loginUser({ email, password }) {
   try {
     const existingUser = await User.findOne({ email });
-
     if (!existingUser) {
       return { success: false, message: 'Invalid email or password' };
     }
 
     const isMatch = await existingUser.comparePassword(password);
-    if (!existingUser.isVerified) {
-      return { success: false, message: 'User not verified. Please verify your account first.' };
-    }
 
     if (!isMatch) {
       return { success: false, message: 'Invalid email or password' };
     }
 
-    const verifiedUserExists = await User.findOne({ 
-      $or: [{ email: existingUser.email }, { phoneNumber: existingUser.phoneNumber }],
-      verified: true 
-    });
-    
-    if (!verifiedUserExists) {
+    if (!existingUser.isVerified) {
       return { success: false, message: 'User not verified. Please verify your account first.' };
     }
 
@@ -102,18 +90,15 @@ async function loginUser({ email, password }) {
     return {
       success: true,
       message: 'Successful login',
-        accessToken,
-        refreshToken,
-      
+      accessToken,
+      refreshToken,
     };
-
   } catch (err) {
-
     console.error('Error in login:', err);
-
     return { success: false, message: 'Login failed' };
   }
 }
+
 // ///////////////////////////////////////////////////////
 
 async function refreshToken(req) {
