@@ -52,9 +52,7 @@ client.on('message', async (topic, message) => {
   }
 });
 
-/**
- * @param {string} deviceId 
- */
+
 function subscribeToDevice(deviceId) {
   if (subscribedDevices.has(deviceId)) return;
 
@@ -69,10 +67,7 @@ function subscribeToDevice(deviceId) {
   });
 }
 
-/**
- * @param {string} deviceId 
- * @returns {Promise<{success: boolean, message?: string, data?: object}>}
- */
+
 async function getLatestSensorData(deviceId) {
   const latestData = await SensorData.findOne({ deviceId }).sort({ timestamp: -1 });
   if (!latestData) {
@@ -81,10 +76,7 @@ async function getLatestSensorData(deviceId) {
   return { success: true, data: latestData };
 }
 
-/**
- * @param {string} topic 
- * @param {string} message 
- */
+
 async function sendCommand(topic, message) {
   return new Promise((resolve, reject) => {
     if (!client.connected) {
@@ -99,13 +91,7 @@ async function sendCommand(topic, message) {
   });
 }
 
-/**
- * @param {string} deviceId 
- * @param {string} topic 
- * @param {string} onTime 
- * @param {string} offTime 
- * @param {string} timezone 
- */
+
 async function setAutomationRule(deviceId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   if (!topic) throw new Error('topic is not defined');
 
