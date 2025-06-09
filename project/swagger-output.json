@@ -300,21 +300,90 @@
         }
       }
     },
-    "/mqt/send-mqtt": {
+    "/mqt/data": {
+      "get": {
+        "tags": [
+          "MQTT"
+        ],
+        "summary": "Get Latest Temperature Data",
+        "description": "",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "Device ID to get latest sensor data for",
+            "example": "VIOT_0D2BEC"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest sensor data",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {}
+                }
+              },
+              "xml": {
+                "name": "main"
+              }
+            }
+          },
+          "404": {
+            "description": "No sensor data available",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "message": {
+                  "type": "string",
+                  "example": "No sensor data available"
+                }
+              },
+              "xml": {
+                "name": "main"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/mqt/command": {
       "post": {
+        "tags": [
+          "MQTT"
+        ],
+        "summary": "Send command to device",
         "description": "",
         "parameters": [
           {
             "name": "body",
             "in": "body",
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
                 "topic": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "cmnd/VIOT_0D2BEC/STATUS"
                 },
                 "message": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "STATUS"
                 }
               }
             }
@@ -324,11 +393,206 @@
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "500": {
             "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/mqt/automation": {
+      "post": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Set ON/OFF automation times for a device",
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceId": {
+                  "type": "string",
+                  "example": "VIOT_0D2BEC"
+                },
+                "topic": {
+                  "type": "string",
+                  "example": "cmnd/VIOT_0D2BEC/POWER"
+                },
+                "onTime": {
+                  "type": "string",
+                  "example": "07:30"
+                },
+                "offTime": {
+                  "type": "string",
+                  "example": "18:00"
+                },
+                "timezone": {
+                  "type": "string",
+                  "example": "Asia/Ulaanbaatar"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           },
-          "503": {
-            "description": "Service Unavailable"
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/device/registerDevices": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceId": {
+                  "example": "any"
+                },
+                "category": {
+                  "example": "any"
+                },
+                "type": {
+                  "example": "any"
+                },
+                "metadata": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/device/devices": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/device/devices/{deviceId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/device/devices/category/{category}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/device/updateDevices/{deviceId}": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }

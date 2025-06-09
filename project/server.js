@@ -30,8 +30,10 @@ const userRouter = require('./routes/users');
 app.use('/users', userRouter);
 const verifyRouter = require('./routes/otps');
 app.use('/otp', verifyRouter);
-const mqtRouter = require('./routes/mqt');
+const mqtRouter = require('./routes/mqtt');
 app.use('/mqt', mqtRouter);
+const deviceRoutter = require('./routes/device');
+app.use('/device', deviceRoutter);
 
 
 app.get('/', (req, res) => {
