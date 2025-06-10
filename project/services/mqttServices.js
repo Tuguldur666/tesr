@@ -1,4 +1,5 @@
 const mqtt = require('mqtt');
+const axios = require('axios');
 const Device = require('../models/Device');
 const SensorData = require('../models/data');
 const Automation = require('../models/auto');
@@ -12,8 +13,24 @@ const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
 
 const subscribedDevices = new Set();
 
+function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
+  axios.post(`http://192.168.1.168:3001/${endpoint}`, payload, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(() => {
+      console.log(`➡️ Sent ${endpoint} to HTTP server`);
+    })
+    .catch((err) => {
+      console.error(`❌ Failed to send ${endpoint}:`, err.message);
+    });
+}
+
+
 client.on('connect', async () => {
-  console.log('✅ Connected to EMQX Broker');
+  sendHttpEvent('connection');
+
   const devices = await Device.find({});
   devices.forEach(device => {
     subscribeToDevice(device.deviceId);
@@ -21,15 +38,16 @@ client.on('connect', async () => {
 });
 
 client.on('reconnect', () => {
-  console.log('🔄 Reconnecting to MQTT broker...');
+  sendHttpEvent('stat', { status: 'Reconnected' });
 });
 
+
 client.on('error', (err) => {
-  console.error('❌ MQTT connection error:', err);
+  sendHttpEvent('discooonection', { status: 'Error', message: err.message });
 });
 
 client.on('offline', () => {
-  console.warn('⚠️ MQTT client is offline');
+  sendHttpEvent('discooonection', { status: 'Offline' });
 });
 
 client.on('message', async (topic, message) => {
@@ -37,6 +55,7 @@ client.on('message', async (topic, message) => {
     const data = JSON.parse(message.toString());
     const match = topic.match(/^tele\/([^/]+)\/SENSOR$/);
     if (!match) return;
+
     const deviceId = match[1];
 
     const sensorData = new SensorData({
@@ -47,11 +66,16 @@ client.on('message', async (topic, message) => {
     await sensorData.save();
     console.log(`📥 Saved sensor data for device ${deviceId}`, data);
 
+    sendHttpEvent('tele', { deviceId, data });
+
+    if (data?.KhValue !== undefined) {
+      sendHttpEvent('teleKh', { deviceId, KhValue: data.KhValue });
+    }
+
   } catch (e) {
     console.error('❗ JSON parse error or DB error:', e.message);
   }
 });
-
 
 function subscribeToDevice(deviceId) {
   if (subscribedDevices.has(deviceId)) return;
@@ -67,7 +91,6 @@ function subscribeToDevice(deviceId) {
   });
 }
 
-
 async function getLatestSensorData(deviceId) {
   const latestData = await SensorData.findOne({ deviceId }).sort({ timestamp: -1 });
   if (!latestData) {
@@ -75,7 +98,6 @@ async function getLatestSensorData(deviceId) {
   }
   return { success: true, data: latestData };
 }
-
 
 async function sendCommand(topic, message) {
   return new Promise((resolve, reject) => {
@@ -90,7 +112,6 @@ async function sendCommand(topic, message) {
     });
   });
 }
-
 
 async function setAutomationRule(deviceId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   if (!topic) throw new Error('topic is not defined');
