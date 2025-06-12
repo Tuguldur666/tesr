@@ -21,7 +21,8 @@ const deviceSchema = new mongoose.Schema({
   },
   registeredAt: { type: Date, default: Date.now },
   metadata: { type: Object, default: {} },
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
 });
 
 const Device = mongoose.model('Device', deviceSchema);

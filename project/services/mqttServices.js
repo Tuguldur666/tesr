@@ -3,10 +3,9 @@ const axios = require('axios');
 const Device = require('../models/Device');
 const SensorData = require('../models/data');
 const Automation = require('../models/auto');
+const DeviceStatusLog = require('../models/status');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
-
-
 
 const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
   username: process.env.MQTT_USER,
@@ -17,9 +16,7 @@ const subscribedDevices = new Set();
 
 function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   axios.post(`http://192.168.1.168:3001/${endpoint}`, payload, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' },
   }).then(() => {
     console.log(`➡️ Sent ${endpoint} to HTTP server`);
   }).catch((err) => {
@@ -27,12 +24,39 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   });
 }
 
+async function logDeviceStatus(clientId, status, message = '') {
+  try {
+    const updatedLog = await DeviceStatusLog.findOneAndUpdate(
+      { clientId },                           
+      { status, message, timestamp: new Date() }, 
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    console.log(`📝 Logged status for device ${clientId}: ${status} (${message})`);
+    return updatedLog;
+  } catch (err) {
+    console.error(`❌ Failed to log device status for ${clientId}:`, err.message);
+  }
+}
+
+
+
+
+async function logAndUpdateStatus(clientId, status, message = '') {
+  await logDeviceStatus(clientId, status, message);
+}
+
 client.on('connect', async () => {
   sendHttpEvent('connection');
+
   const devices = await Device.find({});
   devices.forEach(device => {
     if (device.topics?.sensor) {
       subscribeToTopic(device.topics.sensor);
+    }
+    if (device.clientId) {
+      subscribeToTopic(`tele/${device.clientId}/STATUS`);
+      subscribeToTopic(`stat/${device.clientId}/RESULT`);
+      subscribeToTopic(`stat/${device.clientId}/POWER`);
     }
   });
 });
@@ -50,10 +74,49 @@ client.on('offline', () => {
 });
 
 client.on('message', async (topic, message) => {
-  console.log('📩 MQTT message received:', topic, message.toString());
+  const msgStr = message.toString();
+  console.log('📩 MQTT message received:', topic, msgStr);
+
+  if (topic.startsWith('stat/')) {
+    const statMatch = topic.match(/^stat\/([^/]+)\/(RESULT|POWER)$/);
+    if (statMatch) {
+      const clientId = statMatch[1];
+      const subTopic = statMatch[2];
+
+      let powerStatus;
+
+      if (subTopic === 'RESULT') {
+        try {
+          const jsonPayload = JSON.parse(msgStr);
+          powerStatus = jsonPayload.POWER?.toLowerCase();
+        } catch {
+          console.warn('⚠️ Failed to parse RESULT payload JSON:', msgStr);
+        }
+      } else if (subTopic === 'POWER') {
+        powerStatus = msgStr.toLowerCase();
+      }
+
+      if (powerStatus === 'on' || powerStatus === 'off') {
+        await logAndUpdateStatus(clientId, powerStatus, `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
+      } else {
+        console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
+      }
+      return;
+    }
+  }
+
+  if (topic.endsWith('/STATUS')) {
+    const clientId = topic.split('/')[1];
+    const status = msgStr.toLowerCase();
+
+    if (status === 'on' || status === 'off') {
+      await logAndUpdateStatus(clientId, status, 'Status update from tele STATUS');
+      return;
+    }
+  }
 
   try {
-    const parsed = JSON.parse(message.toString());
+    const parsed = JSON.parse(msgStr);
 
     const match = topic.match(/^tele\/([^/]+)\/([^/]+)$/);
     if (!match) {
@@ -62,7 +125,7 @@ client.on('message', async (topic, message) => {
     }
 
     const clientId = match[1];
-    const {TempUnit, ...rest } = parsed;
+    const { TempUnit, ...rest } = parsed;
 
     const [entity, sensorPayload] = Object.entries(rest).find(
       ([_, val]) => typeof val === 'object' && val !== null
@@ -73,15 +136,9 @@ client.on('message', async (topic, message) => {
       return;
     }
 
-    const data = {
-      ...sensorPayload
-    };
+    const data = { ...sensorPayload };
 
-    const sensorEntry = new SensorData({
-      clientId,
-      entity,
-      data
-    });
+    const sensorEntry = new SensorData({ clientId, entity, data });
 
     try {
       const savedEntry = await sensorEntry.save();
@@ -93,11 +150,9 @@ client.on('message', async (topic, message) => {
       } else {
         console.warn('❓ Entry not found in DB after save!');
       }
-
     } catch (saveErr) {
       console.error('❗ Mongoose save error:', saveErr);
     }
-
   } catch (e) {
     console.error('❗ Failed to handle MQTT message:', e.message);
   }
@@ -107,7 +162,7 @@ function subscribeToTopic(topic) {
   if (subscribedDevices.has(topic)) return;
   client.subscribe(topic, (err) => {
     if (err) {
-      console.error(`❌ Subscription failed for ${topic}:`, err.message);
+      console.error(`❌ Failed to subscribe to ${topic}:`, err.message);
     } else {
       subscribedDevices.add(topic);
       console.log(`📡 Subscribed to ${topic}`);
@@ -116,11 +171,11 @@ function subscribeToTopic(topic) {
 }
 
 async function getLatestSensorData(clientId) {
-  const latestData = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
-  if (!latestData) {
+  const latest = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
+  if (!latest) {
     return { success: false, message: 'No sensor data available' };
   }
-  return { success: true, data: latestData };
+  return { success: true, data: latest };
 }
 
 async function sendCommand(topic, message) {
@@ -172,7 +227,7 @@ cron.schedule('* * * * *', async () => {
       }
     }
   } catch (err) {
-    console.error('⛔ Error running automation scheduler:', err.message);
+    console.error('⛔ Automation error:', err.message);
   }
 });
 

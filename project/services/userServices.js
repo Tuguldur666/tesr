@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const Device = require('../models/Device');
 const otp = require('./otpServices');
 const jwt = require('jsonwebtoken');
 
@@ -138,6 +139,7 @@ async function refreshToken(req) {
 }
 // //////////////////////////////////////////
 
+
 async function getUserData(req) {
   const authHeader = req.headers.authorization;
 
@@ -149,12 +151,14 @@ async function getUserData(req) {
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    console.log('Decoded access token:', decoded);
+    console.log('🔐 Decoded access token:', decoded);
 
-    const user = await User.findById(decoded.id).select('-password'); 
+    const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       return { success: false, status: 404, message: 'User not found' };
     }
+
+    const devices = await Device.find({ owner: user._id });
 
     return {
       success: true,
@@ -162,16 +166,17 @@ async function getUserData(req) {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        devices 
       }
     };
   } catch (err) {
-
-    console.error('Access token error:', err);
-
+    console.error('❗ Access token error:', err);
     return { success: false, status: 403, message: 'Invalid or expired access token' };
   }
 }
+
+module.exports = getUserData;
 
 
 

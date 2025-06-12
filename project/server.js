@@ -98,6 +98,7 @@ connectToMongoDB().then((mongooseInstance) => {
   app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
   });
+ 
   check();
 }).catch(err => {
   console.error('Failed to connect to MongoDB:', err);
