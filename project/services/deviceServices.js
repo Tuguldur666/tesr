@@ -1,5 +1,7 @@
 const Device = require('../models/Device');
 const SensorData = require('../models/data'); 
+const mongoose = require('mongoose');
+
 
 function generateTopics(clientId) {
   return {
@@ -18,7 +20,7 @@ function generateTopics(clientId) {
  * @param {object} metadata
  * @returns {Promise<{success: boolean, message?: string, device?: object}>}
  */
-async function registerDevice(clientId, entity ,category, type, metadata = {}) {
+async function registerDevice(clientId, entity ,category, type, metadata = {},userId) {
   try {
     const existingDevice = await Device.findOne({ clientId });
     if (existingDevice) {
@@ -34,6 +36,8 @@ async function registerDevice(clientId, entity ,category, type, metadata = {}) {
       type,
       topics,
       metadata,
+      userId,
+      owner: new mongoose.Types.ObjectId(userId),
     });
 
     await device.save();

@@ -4,7 +4,8 @@ const sensorDataSchema = new mongoose.Schema({
   clientId: { type: String, required: true },
   entity: { type: String, required: true },
   data: { type: Object, default: {} },
-}, { timestamps: { createdAt: true, updatedAt: false } });
+  timestamp: { type: Date, default: Date.now},
+});
 
 const SensorData = mongoose.model('SensorData', sensorDataSchema, 'datas');
 

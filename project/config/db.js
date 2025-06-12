@@ -12,10 +12,6 @@ async function connectToMongoDB() {
 
     console.log('✅ MongoDB connected');
 
-    const db = mongoose.connection.db;
-    const collections = await db.listCollections().toArray();
-    console.log('📁 Collections in DB:', collections.map(c => c.name));
-
     return conn;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);

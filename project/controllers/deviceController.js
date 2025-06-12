@@ -6,7 +6,7 @@ const deviceService = require('../services/deviceServices');
 /*
   #swagger.tags = ['Devices']
   #swagger.summary = 'Register a new device'
-  #swagger.description = 'Registers a device with clientId, entity, category, type, and optional metadata.'
+  #swagger.description = 'Registers a device with clientId, entity, category, type, metadata, and links it to a user by userId.'
   #swagger.parameters['body'] = {
     in: 'body',
     required: true,
@@ -15,15 +15,46 @@ const deviceService = require('../services/deviceServices');
       entity: "SI7021",
       category: "temperature",
       type: "VIOT THR316D",
+      topics: {
+        sensor: "tele/VIOT_0D2BEC/SENSOR",
+        status: "tele/VIOT_0D2BEC/STATE",
+        statusCommand: "cmnd/VIOT_0D2BEC/STATUS"
+      },
       metadata: {
         programVersion: "14.6.0",
         ipAddress: "192.168.1.142"
+      },
+      userId: "64fa5db7cda63fd35f7c321a" // ObjectId string
+    }
+  }
+  #swagger.responses[201] = {
+    description: 'Device registered successfully.',
+    schema: {
+      success: true,
+      message: "Device registered",
+      device: {
+        _id: "684a42cf23696f096cb66b50",
+        clientId: "VIOT_0D2BEC",
+        entity: "SI7021",
+        category: "temperature",
+        type: "VIOT THR316D",
+        metadata: {
+          programVersion: "14.6.0",
+          ipAddress: "192.168.1.142"
+        },
+        topics: {
+          sensor: "tele/VIOT_0D2BEC/SENSOR",
+          status: "tele/VIOT_0D2BEC/STATE",
+          statusCommand: "cmnd/VIOT_0D2BEC/STATUS"
+        },
+        owner: "64fa5db7cda63fd35f7c321a",
+        registeredAt: "2025-06-12T03:00:31.241Z"
       }
     }
   }
-  #swagger.responses[201] = { description: 'Device registered successfully.' }
   #swagger.responses[409] = { description: 'Device already registered.' }
 */
+
 exports.registerDevice = async (req, res) => {
   try {
     const { clientId, entity, category, type, metadata } = req.body;
