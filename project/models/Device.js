@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const allowedCategories = ['temperature', 'motion', 'light', 'humidity', 'generic'];
 
 const deviceSchema = new mongoose.Schema({
-  deviceId: { type: String, required: true, unique: true },
+  clientId: { type: String, required: true, unique: true },
+  entity: { type: String, required: true, unique: true },
   category: { 
     type: String, 
     required: true, 

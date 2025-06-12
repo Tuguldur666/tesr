@@ -6,6 +6,8 @@ const Automation = require('../models/auto');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 
+
+
 const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
   username: process.env.MQTT_USER,
   password: process.env.MQTT_PASS,
@@ -18,29 +20,26 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
     headers: {
       'Content-Type': 'application/json'
     }
-  })
-    .then(() => {
-      console.log(`➡️ Sent ${endpoint} to HTTP server`);
-    })
-    .catch((err) => {
-      console.error(`❌ Failed to send ${endpoint}:`, err.message);
-    });
+  }).then(() => {
+    console.log(`➡️ Sent ${endpoint} to HTTP server`);
+  }).catch((err) => {
+    console.error(`❌ Failed to send ${endpoint}:`, err.message);
+  });
 }
-
 
 client.on('connect', async () => {
   sendHttpEvent('connection');
-
   const devices = await Device.find({});
   devices.forEach(device => {
-    subscribeToDevice(device.deviceId);
+    if (device.topics?.sensor) {
+      subscribeToTopic(device.topics.sensor);
+    }
   });
 });
 
 client.on('reconnect', () => {
   sendHttpEvent('stat', { status: 'Reconnected' });
 });
-
 
 client.on('error', (err) => {
   sendHttpEvent('discooonection', { status: 'Error', message: err.message });
@@ -51,48 +50,73 @@ client.on('offline', () => {
 });
 
 client.on('message', async (topic, message) => {
+  console.log('📩 MQTT message received:', topic, message.toString());
+
   try {
-    const data = JSON.parse(message.toString());
-    const match = topic.match(/^tele\/([^/]+)\/SENSOR$/);
-    if (!match) return;
+    const parsed = JSON.parse(message.toString());
 
-    const deviceId = match[1];
+    const match = topic.match(/^tele\/([^/]+)\/([^/]+)$/);
+    if (!match) {
+      console.log('⚠️ Topic did not match expected pattern:', topic);
+      return;
+    }
 
-    const sensorData = new SensorData({
-      deviceId,
-      data,
+    const clientId = match[1];
+    const {TempUnit, ...rest } = parsed;
+
+    const [entity, sensorPayload] = Object.entries(rest).find(
+      ([_, val]) => typeof val === 'object' && val !== null
+    ) || [];
+
+    if (!entity || !sensorPayload) {
+      console.log(`⚠️ No valid sensor data found for client ${clientId}`);
+      return;
+    }
+
+    const data = {
+      ...sensorPayload
+    };
+
+    const sensorEntry = new SensorData({
+      clientId,
+      entity,
+      data
     });
 
-    await sensorData.save();
-    console.log(`📥 Saved sensor data for device ${deviceId}`, data);
+    try {
+      const savedEntry = await sensorEntry.save();
+      console.log('✅ Sensor entry saved to DB:', savedEntry);
 
-    sendHttpEvent('tele', { deviceId, data });
+      const confirmEntry = await SensorData.findById(savedEntry._id).lean();
+      if (confirmEntry) {
+        console.log('🔄 Confirmed saved in DB:', confirmEntry);
+      } else {
+        console.warn('❓ Entry not found in DB after save!');
+      }
 
-    if (data?.KhValue !== undefined) {
-      sendHttpEvent('teleKh', { deviceId, KhValue: data.KhValue });
+    } catch (saveErr) {
+      console.error('❗ Mongoose save error:', saveErr);
     }
 
   } catch (e) {
-    console.error('❗ JSON parse error or DB error:', e.message);
+    console.error('❗ Failed to handle MQTT message:', e.message);
   }
 });
 
-function subscribeToDevice(deviceId) {
-  if (subscribedDevices.has(deviceId)) return;
-
-  const sensorTopic = `tele/${deviceId}/SENSOR`;
-  client.subscribe(sensorTopic, (err) => {
+function subscribeToTopic(topic) {
+  if (subscribedDevices.has(topic)) return;
+  client.subscribe(topic, (err) => {
     if (err) {
-      console.error(`❌ Subscription failed for ${sensorTopic}:`, err);
+      console.error(`❌ Subscription failed for ${topic}:`, err.message);
     } else {
-      subscribedDevices.add(deviceId);
-      console.log(`📡 Subscribed to ${sensorTopic}`);
+      subscribedDevices.add(topic);
+      console.log(`📡 Subscribed to ${topic}`);
     }
   });
 }
 
-async function getLatestSensorData(deviceId) {
-  const latestData = await SensorData.findOne({ deviceId }).sort({ timestamp: -1 });
+async function getLatestSensorData(clientId) {
+  const latestData = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
   if (!latestData) {
     return { success: false, message: 'No sensor data available' };
   }
@@ -105,18 +129,16 @@ async function sendCommand(topic, message) {
       return reject(new Error('MQTT client not connected'));
     }
     client.publish(topic, message, {}, (err) => {
-      if (err) {
-        return reject(err);
-      }
+      if (err) return reject(err);
       resolve({ success: true, message: `Command sent to "${topic}": ${message}` });
     });
   });
 }
 
-async function setAutomationRule(deviceId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
+async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   if (!topic) throw new Error('topic is not defined');
 
-  const existing = await Automation.findOne({ deviceId });
+  const existing = await Automation.findOne({ clientId });
 
   if (existing) {
     existing.topic = topic;
@@ -127,7 +149,7 @@ async function setAutomationRule(deviceId, topic, onTime, offTime, timezone = 'A
     return { success: true, message: 'Automation rule updated' };
   }
 
-  const newRule = new Automation({ deviceId, topic, onTime, offTime, timezone });
+  const newRule = new Automation({ clientId, topic, onTime, offTime, timezone });
   await newRule.save();
   return { success: true, message: 'Automation rule created' };
 }
@@ -143,19 +165,19 @@ cron.schedule('* * * * *', async () => {
 
       if (currentTimeStr === rule.onTime) {
         await sendCommand(rule.topic, 'ON');
-        console.log(`Automation ON sent to ${rule.deviceId} at ${currentTimeStr}`);
+        console.log(`⚙️ Automation ON sent to ${rule.clientId} at ${currentTimeStr}`);
       } else if (currentTimeStr === rule.offTime) {
         await sendCommand(rule.topic, 'OFF');
-        console.log(`Automation OFF sent to ${rule.deviceId} at ${currentTimeStr}`);
+        console.log(`⚙️ Automation OFF sent to ${rule.clientId} at ${currentTimeStr}`);
       }
     }
   } catch (err) {
-    console.error('Error running automation scheduler:', err.message);
+    console.error('⛔ Error running automation scheduler:', err.message);
   }
 });
 
 module.exports = {
-  subscribeToDevice,
+  subscribeToTopic,
   getLatestSensorData,
   sendCommand,
   setAutomationRule,

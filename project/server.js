@@ -8,6 +8,8 @@ const cors = require('cors');
 const serverless = require('serverless-http');
 const cookieParser = require('cookie-parser');
 const mqttController = require('./controllers/httpEventController');
+const mongoose = require('mongoose');
+const SensorData = require('./models/data');
 
 dotenv.config({ path: './config/config.env' });
 
@@ -72,6 +74,23 @@ app.get('/', (req, res) => {
 
 app.use(errorHandler);
 
+async function check() {
+  if (mongoose.connection.readyState !== 1) {
+    console.log('⛔ Mongoose not connected. Skipping check().');
+    return;
+  }
+
+  try {
+    const count = await SensorData.countDocuments();
+    console.log(`📦 Total documents in sensordatas: ${count}`);
+
+    const latest = await SensorData.findOne().sort({ createdAt: -1 }).lean();
+    console.log('🧾 Latest entry:', latest);
+  } catch (err) {
+    console.error('❌ Failed to check sensor data:', err);
+  }
+}
+
 
 connectToMongoDB().then((mongooseInstance) => {
   app.locals.db = mongooseInstance;
@@ -79,9 +98,12 @@ connectToMongoDB().then((mongooseInstance) => {
   app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
   });
+  check();
 }).catch(err => {
   console.error('Failed to connect to MongoDB:', err);
 });
+
+
 
 module.exports.handler = serverless(app);
 module.exports = app;

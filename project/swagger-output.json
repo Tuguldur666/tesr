@@ -554,7 +554,10 @@
             "schema": {
               "type": "object",
               "properties": {
-                "deviceId": {
+                "clientId": {
+                  "example": "any"
+                },
+                "entity": {
                   "example": "any"
                 },
                 "category": {

@@ -6,12 +6,13 @@ const deviceService = require('../services/deviceServices');
 /*
   #swagger.tags = ['Devices']
   #swagger.summary = 'Register a new device'
-  #swagger.description = 'Registers a device with deviceId, category, type, and optional metadata.'
+  #swagger.description = 'Registers a device with clientId, entity, category, type, and optional metadata.'
   #swagger.parameters['body'] = {
     in: 'body',
     required: true,
     schema: {
-      deviceId: "VIOT_0D2BEC",
+      clientId: "VIOT_0D2BEC",
+      entity: "SI7021",
       category: "temperature",
       type: "VIOT THR316D",
       metadata: {
@@ -25,8 +26,8 @@ const deviceService = require('../services/deviceServices');
 */
 exports.registerDevice = async (req, res) => {
   try {
-    const { deviceId, category, type, metadata } = req.body;
-    const result = await deviceService.registerDevice(deviceId, category, type, metadata);
+    const { clientId, entity, category, type, metadata } = req.body;
+    const result = await deviceService.registerDevice(clientId, entity, category, type, metadata);
     if (!result.success) {
       return res.status(409).json(result);
     }
