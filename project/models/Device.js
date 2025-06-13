@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const allowedCategories = ['temperature', 'motion', 'light', 'humidity', 'generic'];
+const allowedCategories = ['temperature', 'motion', 'light', 'humidity', 'generic','bridge'];
 
 const deviceSchema = new mongoose.Schema({
   clientId: { type: String, required: true, unique: true },
