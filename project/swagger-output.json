@@ -599,30 +599,8 @@
         }
       }
     },
-    "/device/devices/{clientId}": {
+    "/device/{clientId}": {
       "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      },
-      "delete": {
         "description": "",
         "parameters": [
           {
@@ -645,7 +623,7 @@
         }
       }
     },
-    "/device/devices/category/{category}": {
+    "/device/category/{category}": {
       "get": {
         "description": "",
         "parameters": [
@@ -865,6 +843,30 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/device/deleteDevices/{clientId}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
