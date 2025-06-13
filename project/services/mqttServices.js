@@ -24,19 +24,20 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   });
 }
 
-async function logDeviceStatus(clientId, status, message = '') {
+async function logDeviceStatus(clientId, power, status, message = '') {
   try {
     const updatedLog = await DeviceStatusLog.findOneAndUpdate(
-      { clientId },
-      { status, message, timestamp: new Date() },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { clientId }, 
+      { power, status, message, timestamp: new Date() }, 
+      { upsert: true, new: true, setDefaultsOnInsert: true } 
     );
-    console.log(`📝 Logged status for device ${clientId}: ${status} (${message})`);
+    console.log(`📝 Status updated for ${clientId}: power=${power}, status=${status}, message=${message}`);
     return updatedLog;
   } catch (err) {
-    console.error(`❌ Failed to log device status for ${clientId}:`, err.message);
+    console.error(`❌ Failed to update status for ${clientId}:`, err.message);
   }
 }
+
 
 function subscribeDeviceTopics(device) {
   if (device.topics) {
@@ -46,136 +47,139 @@ function subscribeDeviceTopics(device) {
       }
     });
   }
+
+
+  if (device.clientId) {
+    subscribeToTopic(`stat/${device.clientId}/POWER`);
+    subscribeToTopic(`stat/${device.clientId}/RESULT`);
+    subscribeToTopic(`tele/${device.clientId}/LWT`);
+  }
 }
 
 client.on('connect', async () => {
   sendHttpEvent('connection');
-
   const devices = await Device.find({});
   devices.forEach(device => {
     subscribeDeviceTopics(device);
-
     if (device.clientId) {
-      logDeviceStatus(device.clientId, 'connected', 'MQTT client connected');
+      logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT client connected');
     }
   });
 });
 
 client.on('reconnect', async () => {
   sendHttpEvent('stat', { status: 'Reconnected' });
-
   const devices = await Device.find({});
   devices.forEach(device => {
     if (device.clientId) {
-      logDeviceStatus(device.clientId, 'connected', 'MQTT client reconnected');
+      logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT client reconnected');
     }
   });
 });
 
 client.on('error', async (err) => {
   sendHttpEvent('disconnection', { status: 'Error', message: err.message });
-
   const devices = await Device.find({});
   devices.forEach(device => {
     if (device.clientId) {
-      logDeviceStatus(device.clientId, 'disconnected', `MQTT error: ${err.message}`);
+      logDeviceStatus(device.clientId, 'off', 'error', `MQTT error: ${err.message}`);
     }
   });
 });
 
 client.on('offline', async () => {
   sendHttpEvent('disconnection', { status: 'Offline' });
-
   const devices = await Device.find({});
   devices.forEach(device => {
     if (device.clientId) {
-      logDeviceStatus(device.clientId, 'disconnected', 'MQTT client went offline');
+      logDeviceStatus(device.clientId, 'off', 'offline', 'MQTT client went offline');
     }
   });
 });
 
 client.on('message', async (topic, message) => {
-  const msgStr = message.toString();
-  console.log('📩 MQTT message received:', topic, msgStr);
-
-  if (topic.startsWith('stat/')) {
-    const statMatch = topic.match(/^stat\/([^/]+)\/(RESULT|POWER)$/);
-    if (statMatch) {
-      const clientId = statMatch[1];
-      const subTopic = statMatch[2];
-
-      let powerStatus;
-
-      if (subTopic === 'RESULT') {
-        try {
-          const jsonPayload = JSON.parse(msgStr);
-          powerStatus = jsonPayload.POWER?.toLowerCase();
-        } catch {
-          console.warn('⚠️ Failed to parse RESULT payload JSON:', msgStr);
-        }
-      } else if (subTopic === 'POWER') {
-        powerStatus = msgStr.toLowerCase();
-      }
-
-      if (powerStatus === 'on' || powerStatus === 'off') {
-        await logDeviceStatus(clientId, powerStatus, `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
-      } else {
-        console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
-      }
-      return;
-    }
-  }
-
-  if (topic.endsWith('/STATUS')) {
-    const clientId = topic.split('/')[1];
-    const status = msgStr.toLowerCase();
-
-    if (status === 'on' || status === 'off') {
-      await logDeviceStatus(clientId, status, 'Status update from tele STATUS');
-      return;
-    }
-  }
-
   try {
-    const parsed = JSON.parse(msgStr);
+    const trimmedTopic = topic.trim();
+    const msgStr = message.toString();
 
-    const match = topic.match(/^tele\/([^/]+)\/([^/]+)$/);
-    if (!match) {
-      console.log('⚠️ Topic did not match expected pattern:', topic);
+
+    console.log(`[DEBUG] Incoming message: topic='${trimmedTopic}', message='${msgStr}'`);
+
+
+    if (trimmedTopic.startsWith('stat/')) {
+      const statMatch = trimmedTopic.match(/^stat\/([^/]+)\/(RESULT|POWER)$/);
+      if (statMatch) {
+        const clientId = statMatch[1];
+        const subTopic = statMatch[2];
+        let powerStatus;
+
+        if (subTopic === 'RESULT') {
+          try {
+            const jsonPayload = JSON.parse(msgStr);
+            const powerKey = Object.keys(jsonPayload).find(k => k.toUpperCase().startsWith('POWER'));
+            if (powerKey) {
+              powerStatus = jsonPayload[powerKey]?.toLowerCase();
+            }
+          } catch (err) {
+            console.warn('⚠️ Failed to parse RESULT JSON:', err.message);
+          }
+        } else if (subTopic === 'POWER') {
+          powerStatus = msgStr.toLowerCase();
+        }
+
+        if (powerStatus === 'on' || powerStatus === 'off') {
+          await logDeviceStatus(clientId, powerStatus, 'connected', `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
+        } else {
+          console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
+        }
+        return;
+      }
+    }
+
+
+    if (trimmedTopic.match(/^tele\/([^/]+)\/LWT$/)) {
+      const clientId = trimmedTopic.split('/')[1];
+  
+      const statusPayload = msgStr.toLowerCase();
+      let power = statusPayload === 'online' ? 'on' : (statusPayload === 'offline' ? 'off' : 'unknown');
+      await logDeviceStatus(clientId, power, 'connected', `LWT status: ${msgStr}`);
       return;
     }
 
-    const clientId = match[1];
-    const { TempUnit, ...rest } = parsed;
-
-    const [entity, sensorPayload] = Object.entries(rest).find(
-      ([_, val]) => typeof val === 'object' && val !== null
-    ) || [];
-
-    if (!entity || !sensorPayload) {
-      console.log(`⚠️ No valid sensor data found for client ${clientId}`);
-      return;
+    if (trimmedTopic.endsWith('/STATUS')) {
+      const clientId = trimmedTopic.split('/')[1];
+      const status = msgStr.toLowerCase();
+      if (status === 'on' || status === 'off') {
+        await logDeviceStatus(clientId, status, 'connected', 'Status update from tele STATUS');
+        return;
+      }
     }
 
-    const data = { ...sensorPayload };
-
-    const sensorEntry = new SensorData({ clientId, entity, data });
 
     try {
-      const savedEntry = await sensorEntry.save();
-      console.log('✅ Sensor entry saved to DB:', savedEntry);
+      const parsed = JSON.parse(msgStr);
+      const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
+      if (!match) return;
 
-      const confirmEntry = await SensorData.findById(savedEntry._id).lean();
-      if (confirmEntry) {
-        console.log('🔄 Confirmed saved in DB:', confirmEntry);
-      } else {
-        console.warn('❓ Entry not found in DB after save!');
-      }
-    } catch (saveErr) {
-      console.error('❗ Mongoose save error:', saveErr);
+      const clientId = match[1];
+      const { TempUnit, ...rest } = parsed;
+
+      const [entity, sensorPayload] = Object.entries(rest).find(
+        ([_, val]) => typeof val === 'object' && val !== null
+      ) || [];
+
+      if (!entity || !sensorPayload) return;
+
+      const data = { ...sensorPayload };
+      const sensorEntry = new SensorData({ clientId, entity, data });
+
+      const savedEntry = await sensorEntry.save();
+      console.log('✅ Sensor entry saved:', savedEntry);
+    } catch (e) {
+      console.error('❗ Failed to parse telemetry JSON:', e.message);
     }
-  } catch (e) {
-    console.error('❗ Failed to handle MQTT message:', e.message);
+  } catch (err) {
+    console.error('❗ Top-level message error:', err.message);
   }
 });
 
@@ -193,17 +197,13 @@ function subscribeToTopic(topic) {
 
 async function getLatestSensorData(clientId) {
   const latest = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
-  if (!latest) {
-    return { success: false, message: 'No sensor data available' };
-  }
+  if (!latest) return { success: false, message: 'No sensor data available' };
   return { success: true, data: latest };
 }
 
 async function sendCommand(topic, message) {
   return new Promise((resolve, reject) => {
-    if (!client.connected) {
-      return reject(new Error('MQTT client not connected'));
-    }
+    if (!client.connected) return reject(new Error('MQTT client not connected'));
     client.publish(topic, message, {}, (err) => {
       if (err) return reject(err);
       resolve({ success: true, message: `Command sent to "${topic}": ${message}` });
@@ -215,7 +215,6 @@ async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'A
   if (!topic) throw new Error('topic is not defined');
 
   const existing = await Automation.findOne({ clientId });
-
   if (existing) {
     existing.topic = topic;
     existing.onTime = onTime;
@@ -232,7 +231,6 @@ async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'A
 
 cron.schedule('* * * * *', async () => {
   const nowUtc = moment.utc();
-
   try {
     const automations = await Automation.find({});
     for (const rule of automations) {
