@@ -14,10 +14,10 @@ const deviceSchema = new mongoose.Schema({
     type: String, 
     required: true,
   },
-  topics: {
-    sensor: String,
-    status: String,
-    statusCommand: String,
+   topics: {
+    type: Map,
+    of: String,
+    default: {},
   },
   registeredAt: { type: Date, default: Date.now },
   metadata: { type: Object, default: {} },

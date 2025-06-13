@@ -27,8 +27,8 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
 async function logDeviceStatus(clientId, status, message = '') {
   try {
     const updatedLog = await DeviceStatusLog.findOneAndUpdate(
-      { clientId },                           
-      { status, message, timestamp: new Date() }, 
+      { clientId },
+      { status, message, timestamp: new Date() },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     console.log(`📝 Logged status for device ${clientId}: ${status} (${message})`);
@@ -38,11 +38,14 @@ async function logDeviceStatus(clientId, status, message = '') {
   }
 }
 
-
-
-
-async function logAndUpdateStatus(clientId, status, message = '') {
-  await logDeviceStatus(clientId, status, message);
+function subscribeDeviceTopics(device) {
+  if (device.topics) {
+    Object.values(device.topics).forEach(topic => {
+      if (typeof topic === 'string' && topic.trim()) {
+        subscribeToTopic(topic);
+      }
+    });
+  }
 }
 
 client.on('connect', async () => {
@@ -50,27 +53,45 @@ client.on('connect', async () => {
 
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.topics?.sensor) {
-      subscribeToTopic(device.topics.sensor);
-    }
+    subscribeDeviceTopics(device);
+
     if (device.clientId) {
-      subscribeToTopic(`tele/${device.clientId}/STATUS`);
-      subscribeToTopic(`stat/${device.clientId}/RESULT`);
-      subscribeToTopic(`stat/${device.clientId}/POWER`);
+      logDeviceStatus(device.clientId, 'connected', 'MQTT client connected');
     }
   });
 });
 
-client.on('reconnect', () => {
+client.on('reconnect', async () => {
   sendHttpEvent('stat', { status: 'Reconnected' });
+
+  const devices = await Device.find({});
+  devices.forEach(device => {
+    if (device.clientId) {
+      logDeviceStatus(device.clientId, 'connected', 'MQTT client reconnected');
+    }
+  });
 });
 
-client.on('error', (err) => {
-  sendHttpEvent('discooonection', { status: 'Error', message: err.message });
+client.on('error', async (err) => {
+  sendHttpEvent('disconnection', { status: 'Error', message: err.message });
+
+  const devices = await Device.find({});
+  devices.forEach(device => {
+    if (device.clientId) {
+      logDeviceStatus(device.clientId, 'disconnected', `MQTT error: ${err.message}`);
+    }
+  });
 });
 
-client.on('offline', () => {
-  sendHttpEvent('discooonection', { status: 'Offline' });
+client.on('offline', async () => {
+  sendHttpEvent('disconnection', { status: 'Offline' });
+
+  const devices = await Device.find({});
+  devices.forEach(device => {
+    if (device.clientId) {
+      logDeviceStatus(device.clientId, 'disconnected', 'MQTT client went offline');
+    }
+  });
 });
 
 client.on('message', async (topic, message) => {
@@ -97,7 +118,7 @@ client.on('message', async (topic, message) => {
       }
 
       if (powerStatus === 'on' || powerStatus === 'off') {
-        await logAndUpdateStatus(clientId, powerStatus, `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
+        await logDeviceStatus(clientId, powerStatus, `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
       } else {
         console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
       }
@@ -110,7 +131,7 @@ client.on('message', async (topic, message) => {
     const status = msgStr.toLowerCase();
 
     if (status === 'on' || status === 'off') {
-      await logAndUpdateStatus(clientId, status, 'Status update from tele STATUS');
+      await logDeviceStatus(clientId, status, 'Status update from tele STATUS');
       return;
     }
   }

@@ -78,8 +78,9 @@ async function getDevicesByCategory(category) {
   return await Device.find({ category });
 }
 
-/**
 
+
+/**
  * @param {string} clientId
  * @param {object} updateFields 
  * @returns {Promise<{success: boolean, message: string, device?: object}>}
@@ -94,11 +95,26 @@ async function updateDevice(clientId, updateFields) {
     if (updateFields.type !== undefined) device.type = updateFields.type;
     if (updateFields.metadata !== undefined) device.metadata = updateFields.metadata;
 
+    if (updateFields.topics !== undefined) {
+      if (!device.topics) device.topics = new Map();
+
+      for (const [key, value] of Object.entries(updateFields.topics)) {
+        device.topics.set(key, value);
+      }
+    }
+
     await device.save();
 
-    return { success: true, message: `Device "${clientId}" updated successfully.`, device };
+    return {
+      success: true,
+      message: `Device "${clientId}" updated successfully.`,
+      device
+    };
   } catch (error) {
-    return { success: false, message: 'Error updating device: ' + error.message };
+    return {
+      success: false,
+      message: 'Error updating device: ' + error.message
+    };
   }
 }
 

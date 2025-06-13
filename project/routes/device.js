@@ -7,12 +7,12 @@ router.post('/registerDevices', deviceController.registerDevice);
 
 router.get('/devices', deviceController.getAllDevices);
 
-router.get('/devices/:deviceId', deviceController.getDeviceById);
+router.get('/devices/:clientId', deviceController.getDeviceById);
 
 router.get('/devices/category/:category', deviceController.getDevicesByCategory);
 
-router.put('/updateDevices/:deviceId', deviceController.updateDevice);
+router.put('/updateDevices/:clientId', deviceController.updateDevice);
 
-router.delete('/devices/:deviceId', deviceController.unregisterDevice);
+router.delete('/devices/:clientId', deviceController.unregisterDevice);
 
 module.exports = router;

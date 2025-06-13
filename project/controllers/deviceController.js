@@ -139,35 +139,66 @@ exports.getDevicesByCategory = async (req, res) => {
   }
 };
 
-/**
- * Controller for updating a device
- */
-/*
-  #swagger.tags = ['Devices']
-  #swagger.summary = 'Update device type and/or metadata'
-  #swagger.parameters['deviceId'] = {
-    in: 'path',
-    required: true,
-    type: 'string',
-    example: 'VIOT_0D2BEC'
-  }
-  #swagger.parameters['body'] = {
-    in: 'body',
-    required: true,
-    schema: {
-      type: 'VIOT THR316D v2',
-      metadata: {
-        programVersion: '15.0.0'
+
+
+exports.updateDevice = async (req, res) => {
+    /*
+    #swagger.tags = ['Devices']
+    #swagger.summary = 'Update a device by clientId'
+
+    #swagger.parameters['clientId'] = {
+      in: 'path',
+      required: true,
+      type: 'string',
+      description: 'The client ID of the device to update',
+      example: 'tasmota_2D22D0'
+    }
+
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Device data to update',
+      required: true,
+      schema: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', example: 'TEST-VIOTZBBRIDGE' },
+          metadata: {
+            type: 'object',
+            properties: {
+              programVersion: { type: 'string', example: '15.0.0' },
+              ipAddress: { type: 'string', example: '192.168.1.100' }
+            }
+          },
+          topics: {
+            type: 'object',
+            properties: {
+              sensor: { type: 'string', example: 'tele/tasmota_2D22D0/SENSOR' },
+              status: { type: 'string', example: 'tele/tasmota_2D22D0/STATUS' },
+              statusCommand: { type: 'string', example: 'cmnd/tasmota_2D22D0/STATUS' },
+              zbReceived: { type: 'string', example: 'tele/tasmota_2D22D0/ZbReceived' },
+              lwt: { type: 'string', example: 'tele/tasmota_2D22D0/LWT' }
+            }
+          }
+        }
       }
     }
-  }
-  #swagger.responses[200] = { description: 'Device updated successfully' }
-  #swagger.responses[404] = { description: 'Device not found' }
-*/
-exports.updateDevice = async (req, res) => {
+
+    #swagger.responses[200] = {
+      description: 'Device successfully updated',
+      schema: {
+        success: true,
+        data: {
+          type: "TEST-VIOTZBBRIDGE"
+        }
+      }
+    }
+    #swagger.responses[404] = { description: 'Device not found' }
+    #swagger.responses[500] = { description: 'Internal server error' }
+  */
+
   try {
     const updateFields = req.body;
-    const result = await deviceService.updateDevice(req.params.deviceId, updateFields);
+    const result = await deviceService.updateDevice(req.params.clientId, updateFields);
     if (!result.success) {
       return res.status(404).json(result);
     }
@@ -176,6 +207,8 @@ exports.updateDevice = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
 
 /**
  * Controller for unregistering a device
