@@ -402,7 +402,7 @@
         }
       }
     },
-    "/mqt/command": {
+    "/mqt/toggle": {
       "post": {
         "tags": [
           "MQTT"

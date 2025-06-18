@@ -41,19 +41,44 @@ async function logDeviceStatus(clientId, power, status, message = '') {
 
 async function logPowerStatus({ clientId, power, source, topic }) {
   try {
+    const now = new Date();
+
+    const roundedTime = new Date(Math.floor(now.getTime() / 1000) * 1000);
+
+
+    const alreadyExists = await PowerLog.exists({
+      clientId,
+      power,
+      source,
+      topic,
+      timestamp: {
+        $gte: new Date(roundedTime.getTime() - 2000), 
+        $lt: new Date(roundedTime.getTime() + 2000),   
+      },
+    });
+
+    if (alreadyExists) {
+      console.log(`⚠️ Duplicate log skipped for ${clientId} (${power}) at ${roundedTime.toISOString()}`);
+      return;
+    }
+
     const log = new PowerLog({
       clientId,
       power,
       source,
       topic,
-      timestamp: new Date(),
+      timestamp: now,
     });
+    console.log("Saving power log:", log);
     await log.save();
     console.log(`⚡ Power log saved: ${clientId}, power=${power}, topic=${topic}`);
   } catch (err) {
     console.error(`❌ Failed to save power log for ${clientId}:`, err.message);
   }
 }
+
+
+
 
 function subscribeDeviceTopics(device) {
   if (device.topics) {
@@ -232,10 +257,32 @@ function subscribeToTopic(topic) {
 }
 
 async function getLatestSensorData(clientId) {
-  const latest = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
-  if (!latest) return { success: false, message: 'No sensor data available' };
-  return { success: true, data: latest };
+  try {
+    const latestSensor = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
+
+    const latestStatus = await DeviceStatusLog.findOne({ clientId }).sort({ timestamp: -1 });
+
+    if (!latestSensor && !latestStatus) {
+      return { success: false, message: 'No sensor or device status data available' };
+    }
+
+    const data = {
+      sensor: latestSensor || null,
+      status: latestStatus
+        ? {
+            power: latestStatus.power,
+            status: latestStatus.status,
+          }
+        : null,
+    };
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('❌ Error getting latest sensor data:', err.message);
+    return { success: false, message: 'Server error while retrieving data' };
+  }
 }
+
 
 async function sendCommand(inputTopic, message) {
   return new Promise((resolve, reject) => {
