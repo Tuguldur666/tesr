@@ -56,16 +56,16 @@ exports.forgotPass = async (req, res) => {
       }
     }
   */
-console.log("Received phoneNumber (type and value):", typeof phoneNumber, phoneNumber);
 
   const { phoneNumber } = req.body;
+
+  console.log("Received phoneNumber (type and value):", typeof phoneNumber, phoneNumber);
 
   const result = await optService.forgotPassword({ phoneNumber });
 
   res.status(result.success ? 200 : 400).json(result);
 };
-// /////////////////////////////////////////
-
+// ////////////////////////////////////////////////////////
 
 exports.verifyResetOtp = async (req, res) => {
   /*

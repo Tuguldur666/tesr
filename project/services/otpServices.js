@@ -84,7 +84,6 @@ async function verifyUserByOtp({ phoneNumber, code }) {
 async function forgotPassword({ phoneNumber }) {
   try {
     const user = await User.findOne({ phoneNumber, isVerified: true });
-
     if (!user) {
       return { success: false, message: 'Verified user with this phone number not found' };
     }
@@ -112,6 +111,7 @@ async function forgotPassword({ phoneNumber }) {
     };
   }
 }
+
 
 // //////////////////////////////////////////////////////////////
 
