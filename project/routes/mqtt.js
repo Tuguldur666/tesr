@@ -4,7 +4,7 @@ const mqttController = require('../controllers/mqttController');
 const httpEventController = require('../controllers/httpEventController');
 
 router.get('/data', mqttController.getLatestData);
-router.post('/command', mqttController.sendCommand);
+router.post('/toggle', mqttController.sendCommand);
 router.post('/automation', mqttController.setAutomation);
 // /////////////////////////////////////////////////////////////
 

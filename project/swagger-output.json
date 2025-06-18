@@ -407,7 +407,7 @@
         "tags": [
           "MQTT"
         ],
-        "summary": "Send command to device",
+        "summary": "Send TOGGLE command to device power topic",
         "description": "",
         "parameters": [
           {
@@ -417,13 +417,9 @@
             "schema": {
               "type": "object",
               "properties": {
-                "topic": {
+                "clientId": {
                   "type": "string",
-                  "example": "cmnd/VIOT_0D2BEC/STATUS"
-                },
-                "message": {
-                  "type": "string",
-                  "example": "STATUS"
+                  "example": ""
                 }
               }
             }

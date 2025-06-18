@@ -34,30 +34,35 @@ exports.getLatestData = async (req, res) => {
 exports.sendCommand = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
-    #swagger.summary = 'Send command to device'
+    #swagger.summary = 'Send TOGGLE command to device power topic'
     #swagger.parameters['body'] = {
       in: 'body',
       required: true,
       schema: {
-        topic: 'cmnd/VIOT_0D2BEC/STATUS',
-        message: 'STATUS'
+        clientId: ''
       }
     }
   */
-  const { topic, message } = req.body;
+  const { clientId } = req.body;
 
-  if (!topic || !message) {
-    return res.status(400).json({ success: false, message: 'Missing topic or message' });
+  if (!clientId || typeof clientId !== 'string') {
+    return res.status(400).json({ success: false, message: 'Missing or invalid clientId' });
   }
+
+  const topic = `cmnd/${clientId}/POWER`;
+  const message = 'TOGGLE';
 
   try {
     const result = await mqttService.sendCommand(topic, message);
     res.status(result.success ? 200 : 500).json(result);
   } catch (error) {
-    console.error('Error sending MQTT command:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('Error sending MQTT command:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
 
 
 

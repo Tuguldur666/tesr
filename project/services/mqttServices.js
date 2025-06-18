@@ -237,15 +237,27 @@ async function getLatestSensorData(clientId) {
   return { success: true, data: latest };
 }
 
-async function sendCommand(topic, message) {
+async function sendCommand(inputTopic, message) {
   return new Promise((resolve, reject) => {
     if (!client.connected) return reject(new Error('MQTT client not connected'));
-    client.publish(topic, message, {}, (err) => {
+
+    const match = inputTopic.match(/^[^/]+\/([^/]+)\/[^/]+$/);
+    if (!match) return reject(new Error('Invalid topic format'));
+    const clientId = match[1];
+
+    const commandTopic = `cmnd/${clientId}/POWER`;
+
+    if (typeof message !== 'string' || message.toUpperCase() !== 'TOGGLE') {
+      return reject(new Error('Only TOGGLE command is allowed'));
+    }
+
+    client.publish(commandTopic, message.toUpperCase(), {}, (err) => {
       if (err) return reject(err);
-      resolve({ success: true, message: `Command sent to "${topic}": ${message}` });
+      resolve({ success: true, message: `Command sent to "${commandTopic}": ${message.toUpperCase()}` });
     });
   });
 }
+
 
 async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   if (!topic) throw new Error('topic is not defined');
