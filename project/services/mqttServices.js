@@ -167,20 +167,21 @@ client.on('message', async (topic, message) => {
       return;
     }
 
-try {
-  const parsed = JSON.parse(msgStr);
-  const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
-  if (!match) return;
+    try {
+      const parsed = JSON.parse(msgStr);
+      const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
+      if (!match) return;
 
-  const clientId = match[1];
-  const { TempUnit, Time, ...rest } = parsed;
+      const clientId = match[1];
+      const { TempUnit, ...rest } = parsed;
 
-  for (const [entity, data] of Object.entries(rest)) {
-    if (typeof data === 'object' && data !== null) {
-      if (clientId === 'VIOT_E99614' && data.Id) {
-        delete data.Id;
-      }
+      const [entity, sensorPayload] = Object.entries(rest).find(
+        ([_, val]) => typeof val === 'object' && val !== null
+      ) || [];
 
+      if (!entity || !sensorPayload) return;
+
+      const data = { ...sensorPayload };
       const sensorEntry = new SensorData({
         clientId,
         entity,
@@ -190,12 +191,9 @@ try {
 
       const savedEntry = await sensorEntry.save();
       console.log('✅ Sensor entry saved:', savedEntry);
+    } catch (e) {
+      console.error('❗ Failed to parse telemetry JSON:', e.message);
     }
-  }
-} catch (e) {
-  console.error('❗ Failed to parse telemetry JSON:', e.message);
-}
-
   } catch (err) {
     console.error('❗ Top-level message error:', err.message);
   }
