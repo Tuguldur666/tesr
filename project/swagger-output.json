@@ -438,7 +438,7 @@
         }
       }
     },
-    "/mqt/automation": {
+    "/mqt/automation/{clientId}": {
       "post": {
         "tags": [
           "Automation"
@@ -447,19 +447,23 @@
         "description": "",
         "parameters": [
           {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Device client ID",
+            "example": "clientId"
+          },
+          {
             "name": "body",
             "in": "body",
             "required": true,
             "schema": {
               "type": "object",
               "properties": {
-                "deviceId": {
-                  "type": "string",
-                  "example": "VIOT_0D2BEC"
-                },
                 "topic": {
                   "type": "string",
-                  "example": "cmnd/VIOT_0D2BEC/POWER"
+                  "example": "cmnd/clientId/POWER"
                 },
                 "onTime": {
                   "type": "string",

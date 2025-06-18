@@ -70,24 +70,31 @@ exports.setAutomation = async (req, res) => {
   /*
     #swagger.tags = ['Automation']
     #swagger.summary = 'Set ON/OFF automation times for a device'
+    #swagger.parameters['clientId'] = {
+      in: 'path',
+      required: true,
+      type: 'string',
+      description: 'Device client ID',
+      example: 'clientId'
+    }
     #swagger.parameters['body'] = {
       in: 'body',
       required: true,
       schema: {
-        deviceId: "VIOT_0D2BEC",
-        topic: "cmnd/VIOT_0D2BEC/POWER",
+        topic: "cmnd/clientId/POWER",
         onTime: "07:30",
         offTime: "18:00",
         timezone: "Asia/Ulaanbaatar"
       }
     }
   */
+
+  const deviceId = req.params.clientId;
   const {
-    deviceId,
     topic,
     onTime,
     offTime,
-    timezone = 'Asia/Ulaanbaatar' 
+    timezone = 'Asia/Ulaanbaatar',
   } = req.body;
 
   if (!deviceId || !topic || !onTime || !offTime) {
@@ -101,4 +108,3 @@ exports.setAutomation = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-

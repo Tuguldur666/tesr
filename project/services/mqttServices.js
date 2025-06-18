@@ -307,22 +307,27 @@ async function sendCommand(inputTopic, message) {
 
 
 async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
-  if (!topic) throw new Error('topic is not defined');
-
-  const existing = await Automation.findOne({ clientId });
-  if (existing) {
-    existing.topic = topic;
-    existing.onTime = onTime;
-    existing.offTime = offTime;
-    existing.timezone = timezone;
-    await existing.save();
-    return { success: true, message: 'Automation rule updated' };
+  if (!clientId || !topic || !onTime || !offTime) {
+    throw new Error('Missing required automation rule fields');
   }
 
-  const newRule = new Automation({ clientId, topic, onTime, offTime, timezone });
-  await newRule.save();
-  return { success: true, message: 'Automation rule created' };
+  const update = {
+    topic,
+    onTime,
+    offTime,
+    timezone,
+  };
+
+  const result = await Automation.findOneAndUpdate(
+    { clientId },
+    update,
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  const message = result.wasNew ? 'Automation rule created' : 'Automation rule updated';
+  return { success: true, message };
 }
+
 
 cron.schedule('* * * * *', async () => {
   const nowUtc = moment.utc();

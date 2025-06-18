@@ -5,7 +5,8 @@ const httpEventController = require('../controllers/httpEventController');
 
 router.get('/data', mqttController.getLatestData);
 router.post('/toggle', mqttController.sendCommand);
-router.post('/automation', mqttController.setAutomation);
+router.post('/automation/:clientId', mqttController.setAutomation);
+
 // /////////////////////////////////////////////////////////////
 
 router.post('/connection', (req, res) => {
