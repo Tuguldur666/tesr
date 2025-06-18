@@ -27,9 +27,9 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
 async function logDeviceStatus(clientId, power, status, message = '') {
   try {
     const updatedLog = await DeviceStatusLog.findOneAndUpdate(
-      { clientId }, 
-      { power, status, message, timestamp: new Date() }, 
-      { upsert: true, new: true, setDefaultsOnInsert: true } 
+      { clientId },
+      { power, status, message, timestamp: new Date() },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     console.log(`📝 Status updated for ${clientId}: power=${power}, status=${status}, message=${message}`);
     return updatedLog;
@@ -37,7 +37,6 @@ async function logDeviceStatus(clientId, power, status, message = '') {
     console.error(`❌ Failed to update status for ${clientId}:`, err.message);
   }
 }
-
 
 function subscribeDeviceTopics(device) {
   if (device.topics) {
@@ -48,10 +47,11 @@ function subscribeDeviceTopics(device) {
     });
   }
 
-
   if (device.clientId) {
     subscribeToTopic(`stat/${device.clientId}/POWER`);
     subscribeToTopic(`stat/${device.clientId}/RESULT`);
+    subscribeToTopic(`stat/${device.clientId}/SENSOR`);
+    subscribeToTopic(`tele/${device.clientId}/SENSOR`);
     subscribeToTopic(`tele/${device.clientId}/LWT`);
   }
 }
@@ -101,83 +101,101 @@ client.on('message', async (topic, message) => {
   try {
     const trimmedTopic = topic.trim();
     const msgStr = message.toString();
-
-
     console.log(`[DEBUG] Incoming message: topic='${trimmedTopic}', message='${msgStr}'`);
 
-
-    if (trimmedTopic.startsWith('stat/')) {
-      const statMatch = trimmedTopic.match(/^stat\/([^/]+)\/(RESULT|POWER)$/);
-      if (statMatch) {
-        const clientId = statMatch[1];
-        const subTopic = statMatch[2];
-        let powerStatus;
-
-        if (subTopic === 'RESULT') {
-          try {
-            const jsonPayload = JSON.parse(msgStr);
-            const powerKey = Object.keys(jsonPayload).find(k => k.toUpperCase().startsWith('POWER'));
-            if (powerKey) {
-              powerStatus = jsonPayload[powerKey]?.toLowerCase();
-            }
-          } catch (err) {
-            console.warn('⚠️ Failed to parse RESULT JSON:', err.message);
+    const sensorMatch = trimmedTopic.match(/^(stat|tele)\/([^/]+)\/SENSOR$/);
+    if (sensorMatch) {
+      const clientId = sensorMatch[2];
+      try {
+        console.log("📡 SENSOR is working");
+        const sensorData = JSON.parse(msgStr);
+        for (const [entity, data] of Object.entries(sensorData)) {
+          if (entity === 'Time') continue;
+          if (typeof data === 'object' && data !== null) {
+            const sensorEntry = new SensorData({
+              clientId,
+              entity,
+              data,
+              timestamp: new Date(),
+            });
+            await sensorEntry.save();
+            console.log(`✅ Saved sensor data for ${clientId} entity ${entity}`);
           }
-        } else if (subTopic === 'POWER') {
-          powerStatus = msgStr.toLowerCase();
         }
+      } catch (err) {
+        console.error('❌ Failed to parse SENSOR JSON:', err.message);
+      }
+      return;
+    }
 
+    const statMatch = trimmedTopic.match(/^stat\/([^/]+)\/(RESULT|POWER)$/);
+    if (statMatch) {
+      const clientId = statMatch[1];
+      const subTopic = statMatch[2];
+
+      if (subTopic === 'RESULT') {
+        try {
+          const jsonPayload = JSON.parse(msgStr);
+          const powerKey = Object.keys(jsonPayload).find(k => k.toUpperCase().startsWith('POWER'));
+          if (powerKey) {
+            const powerStatus = jsonPayload[powerKey]?.toLowerCase();
+            if (powerStatus === 'on' || powerStatus === 'off') {
+              await logDeviceStatus(clientId, powerStatus, 'connected', `Power status from stat/RESULT: ${powerStatus.toUpperCase()}`);
+            } else {
+              console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Failed to parse RESULT JSON:', err.message);
+        }
+      } else if (subTopic === 'POWER') {
+        const powerStatus = msgStr.toLowerCase();
         if (powerStatus === 'on' || powerStatus === 'off') {
-          await logDeviceStatus(clientId, powerStatus, 'connected', `Power status from stat/${subTopic}: ${powerStatus.toUpperCase()}`);
+          await logDeviceStatus(clientId, powerStatus, 'connected', `Power status from stat/POWER: ${powerStatus.toUpperCase()}`);
         } else {
           console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
         }
-        return;
       }
+      return;
     }
-
-
-    if (trimmedTopic.match(/^tele\/([^/]+)\/LWT$/)) {
-      const clientId = trimmedTopic.split('/')[1];
-  
+    const lwtMatch = trimmedTopic.match(/^tele\/([^/]+)\/LWT$/);
+    if (lwtMatch) {
+      const clientId = lwtMatch[1];
       const statusPayload = msgStr.toLowerCase();
-      let power = statusPayload === 'online' ? 'on' : (statusPayload === 'offline' ? 'off' : 'unknown');
+      const power = statusPayload === 'online' ? 'on' : (statusPayload === 'offline' ? 'off' : 'unknown');
       await logDeviceStatus(clientId, power, 'connected', `LWT status: ${msgStr}`);
       return;
     }
 
-    if (trimmedTopic.endsWith('/STATUS')) {
-      const clientId = trimmedTopic.split('/')[1];
-      const status = msgStr.toLowerCase();
-      if (status === 'on' || status === 'off') {
-        await logDeviceStatus(clientId, status, 'connected', 'Status update from tele STATUS');
-        return;
+try {
+  const parsed = JSON.parse(msgStr);
+  const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
+  if (!match) return;
+
+  const clientId = match[1];
+  const { TempUnit, Time, ...rest } = parsed;
+
+  for (const [entity, data] of Object.entries(rest)) {
+    if (typeof data === 'object' && data !== null) {
+      if (clientId === 'VIOT_E99614' && data.Id) {
+        delete data.Id;
       }
-    }
 
-
-    try {
-      const parsed = JSON.parse(msgStr);
-      const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
-      if (!match) return;
-
-      const clientId = match[1];
-      const { TempUnit, ...rest } = parsed;
-
-      const [entity, sensorPayload] = Object.entries(rest).find(
-        ([_, val]) => typeof val === 'object' && val !== null
-      ) || [];
-
-      if (!entity || !sensorPayload) return;
-
-      const data = { ...sensorPayload };
-      const sensorEntry = new SensorData({ clientId, entity, data });
+      const sensorEntry = new SensorData({
+        clientId,
+        entity,
+        data,
+        timestamp: new Date(),
+      });
 
       const savedEntry = await sensorEntry.save();
       console.log('✅ Sensor entry saved:', savedEntry);
-    } catch (e) {
-      console.error('❗ Failed to parse telemetry JSON:', e.message);
     }
+  }
+} catch (e) {
+  console.error('❗ Failed to parse telemetry JSON:', e.message);
+}
+
   } catch (err) {
     console.error('❗ Top-level message error:', err.message);
   }
