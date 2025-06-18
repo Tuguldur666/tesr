@@ -5,7 +5,7 @@ exports.getLatestData = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
     #swagger.summary = 'Get Latest Temperature Data'
-    #swagger.parameters['deviceId'] = {
+    #swagger.parameters['clientId'] = {
       in: 'query',
       required: false,
       type: 'string',
@@ -22,8 +22,8 @@ exports.getLatestData = async (req, res) => {
     }
   */
   try {
-    const deviceId = req.query.deviceId || 'VIOT_0D2BEC'; // default deviceId if none provided
-    const result = await mqttService.getLatestSensorData(deviceId);
+    const clientId = req.query.clientId; 
+    const result = await mqttService.getLatestSensorData(clientId);
     res.status(result.success ? 200 : 404).json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

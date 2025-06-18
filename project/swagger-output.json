@@ -349,7 +349,7 @@
         "description": "",
         "parameters": [
           {
-            "name": "deviceId",
+            "name": "clientId",
             "in": "query",
             "required": false,
             "type": "string",
