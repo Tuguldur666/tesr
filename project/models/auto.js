@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const automationSchema = new mongoose.Schema({
   clientId: { type: String, required: true },
-  entity: { type: String, required: true },
   topic: { type: String, required: true },
   onTime: { type: String, required: true },  
   offTime: { type: String, required: true }, 
