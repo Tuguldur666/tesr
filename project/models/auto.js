@@ -10,4 +10,6 @@ const automationSchema = new mongoose.Schema({
   enabled: { type: Boolean, default: true },
 });
 
+automationSchema.index({ clientId: 1, onTime: 1, offTime: 1 }, { unique: true });
+
 module.exports = mongoose.model('Automation', automationSchema);

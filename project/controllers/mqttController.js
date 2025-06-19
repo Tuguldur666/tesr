@@ -108,3 +108,65 @@ exports.setAutomation = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/////////////////////////////////////////////
+
+exports.updateAutomationRuleById = async (req, res) => {
+  const { ruleId } = req.params;
+  const { topic, onTime, offTime, timezone } = req.body;
+
+  if (!topic || !onTime || !offTime) {
+    return res.status(400).json({ success: false, message: 'Missing required update fields' });
+  }
+
+  try {
+    const updated = await mqttService.updateAutomationRuleById(
+      ruleId,
+      { topic, onTime, offTime, timezone },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Automation rule not found' });
+    }
+
+    res.json({ success: true, message: 'Automation rule updated', rule: updated });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Duplicate on/off time for this device' });
+    }
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+//////////////////////////////////////////
+
+exports.getAutomationRulesByClientId = async (req, res) => {
+  const { clientId } = req.params;
+
+  if (!clientId) {
+    return res.status(400).json({ success: false, message: 'Missing clientId' });
+  }
+
+  try {
+    const rules = await mqttService.getAutomationRulesByClientId(clientId);
+    res.json({ success: true, count: rules.length, rules });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+exports.deleteAutomationRuleById = async (req, res) => {
+  const { ruleId } = req.params;
+
+  try {
+    const deleted = await mqttService.deleteAutomationRuleById(ruleId);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Automation rule not found' });
+    }
+
+    res.json({ success: true, message: 'Automation rule deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};

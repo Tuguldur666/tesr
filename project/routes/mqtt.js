@@ -6,6 +6,9 @@ const httpEventController = require('../controllers/httpEventController');
 router.get('/data', mqttController.getLatestData);
 router.post('/toggle', mqttController.sendCommand);
 router.post('/automation/:clientId', mqttController.setAutomation);
+router.put('/update/:ruleId', mqttController.updateAutomationRuleById);
+router.get('/getRule/:clientId', mqttController.getAutomationRulesByClientId);
+router.delete('/delete/:ruleId', mqttController.deleteAutomationRuleById);
 
 // /////////////////////////////////////////////////////////////
 

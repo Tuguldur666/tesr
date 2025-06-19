@@ -311,22 +311,78 @@ async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'A
     throw new Error('Missing required automation rule fields');
   }
 
-  const update = {
-    topic,
-    onTime,
-    offTime,
-    timezone,
-  };
+  try {
+    const rule = await Automation.create({
+      clientId,
+      topic,
+      onTime,
+      offTime,
+      timezone,
+    });
 
-  const result = await Automation.findOneAndUpdate(
-    { clientId },
-    update,
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-
-  const message = result.wasNew ? 'Automation rule created' : 'Automation rule updated';
-  return { success: true, message };
+    return { success: true, message: 'Automation rule created', rule };
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new Error('A rule with the same on/off time already exists for this device');
+    }
+    throw err;
+  }
 }
+////////////////////////////////////
+
+async function updateAutomationRuleById(ruleId, updateData) {
+  const { topic, onTime, offTime, timezone } = updateData;
+
+  if (!topic || !onTime || !offTime) {
+    throw new Error('Missing required update fields');
+  }
+
+  try {
+    const updated = await Automation.findByIdAndUpdate(
+      ruleId,
+      { topic, onTime, offTime, timezone },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      throw new Error('Automation rule not found');
+    }
+
+    return { success: true, message: 'Automation rule updated', rule: updated };
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new Error('A rule with the same on/off time already exists for this device');
+    }
+    throw err;
+  }
+}
+///////////////////////////////
+
+async function getAutomationRulesByClientId(clientId) {
+  if (!clientId) {
+    throw new Error('Missing clientId');
+  }
+
+  const rules = await Automation.find({ clientId });
+
+  return {
+    success: true,
+    count: rules.length,
+    rules,
+  };
+}
+///////////////////////////
+
+async function deleteAutomationRuleById(ruleId) {
+  const deleted = await Automation.findByIdAndDelete(ruleId);
+
+  if (!deleted) {
+    return { success: false, message: 'Automation rule not found' };
+  }
+
+  return { success: true, message: 'Automation rule deleted' };
+}
+
 
 
 cron.schedule('* * * * *', async () => {
@@ -355,4 +411,7 @@ module.exports = {
   getLatestSensorData,
   sendCommand,
   setAutomationRule,
+  updateAutomationRuleById,
+  getAutomationRulesByClientId,
+  deleteAutomationRuleById,
 };
