@@ -84,8 +84,10 @@ function subscribeDeviceTopics(device) {
     });
   }
   if (device.clientId) {
-    ['POWER', 'RESULT', 'SENSOR'].forEach(type => subscribeToTopic(`stat/${device.clientId}/${type}`));
+    subscribeToTopic(`tele/${device.clientId}/POWER`);
+    subscribeToTopic(`tele/${device.clientId}/RESULT`); 
     subscribeToTopic(`tele/${device.clientId}/LWT`);
+    subscribeToTopic(`tele/${device.clientId}/SENSOR`); 
   }
 }
 
@@ -123,35 +125,49 @@ client.on('offline', async () => {
 });
 
 client.on('message', async (topic, message) => {
+   console.log(`Message received on topic: ${topic}`);
   try {
     const trimmedTopic = topic.trim();
     const msgStr = message.toString();
 
-    const statMatch = trimmedTopic.match(/^stat\/(.+?)\/(POWER|SENSOR)$/);
+    const sensorMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/SENSOR$/);
+    const powerMatch = trimmedTopic.match(/^stat\/(.+?)\/POWER$/);
     const lwtMatch = trimmedTopic.match(/^tele\/(.+?)\/LWT$/);
 
-    if (statMatch) {
-      const [_, clientId, subTopic] = statMatch;
-      if (subTopic === 'POWER') {
-        const powerStatus = msgStr.toLowerCase();
-        if (['on', 'off'].includes(powerStatus)) {
-          await logDeviceStatus(clientId, powerStatus, 'connected', `POWER: ${powerStatus}`);
-          await logPowerStatus({ clientId, power: powerStatus, source: 'stat', topic: trimmedTopic });
-        }
-      } else if (subTopic === 'SENSOR') {
-        try {
-          const sensorData = JSON.parse(msgStr);
-          for (const [entity, data] of Object.entries(sensorData)) {
-            if (entity === 'Time') continue;
-            if (typeof data === 'object' && data !== null) {
-              if (clientId === 'VIOT_E99614' && data.Id) delete data.Id;
-              const sensorEntry = new SensorData({ clientId, entity, data, timestamp: new Date() });
-              await sensorEntry.save();
-            }
+    if (powerMatch) {
+      const clientId = powerMatch[1];
+      const powerStatus = msgStr.toLowerCase();
+      if (['on', 'off'].includes(powerStatus)) {
+        await logDeviceStatus(clientId, powerStatus, 'connected', `POWER: ${powerStatus}`);
+        await logPowerStatus({ clientId, power: powerStatus, source: 'stat', topic: trimmedTopic });
+      }
+    } else if (sensorMatch) {
+      const clientId = sensorMatch[2];
+      try {
+        const sensorData = JSON.parse(msgStr);
+        console.log(`Received SENSOR data for ${clientId}:`, sensorData);
+
+        for (const [entity, data] of Object.entries(sensorData)) {
+          if (entity === 'Time') continue;
+          if (typeof data === 'object' && data !== null) {
+            if (clientId === 'VIOT_E99614' && data.Id) delete data.Id;
+
+            console.log(`Saving sensor entity: ${entity}`, data);
+
+            const sensorEntry = new SensorData({
+              clientId,
+              entity,
+              data,
+              timestamp: new Date(),
+            });
+
+            await sensorEntry.save()
+              .then(() => console.log(`Sensor data for ${entity} saved successfully`))
+              .catch((err) => console.error('Error saving sensor data:', err.message));
           }
-        } catch (err) {
-          console.error('❌ SENSOR parse error:', err.message);
         }
+      } catch (err) {
+        console.error('❌ SENSOR parse error:', err.message);
       }
     } else if (lwtMatch) {
       const clientId = lwtMatch[1];
@@ -163,6 +179,7 @@ client.on('message', async (topic, message) => {
     console.error('❗ Message handler error:', err.message);
   }
 });
+
 
 async function getLatestSensorData(clientId) {
   try {
