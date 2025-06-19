@@ -5,6 +5,7 @@ const SensorData = require('../models/data');
 const Automation = require('../models/auto');
 const DeviceStatusLog = require('../models/status');
 const PowerLog = require('../models/powerlog');
+const AutomationLog = require('../models/autolog');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 
@@ -27,13 +28,11 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
 
 async function logDeviceStatus(clientId, power, status, message = '') {
   try {
-    const updatedLog = await DeviceStatusLog.findOneAndUpdate(
+    return await DeviceStatusLog.findOneAndUpdate(
       { clientId },
       { power, status, message, timestamp: new Date() },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-    console.log(`📝 Status updated for ${clientId}: power=${power}, status=${status}, message=${message}`);
-    return updatedLog;
   } catch (err) {
     console.error(`❌ Failed to update status for ${clientId}:`, err.message);
   }
@@ -42,9 +41,7 @@ async function logDeviceStatus(clientId, power, status, message = '') {
 async function logPowerStatus({ clientId, power, source, topic }) {
   try {
     const now = new Date();
-
     const roundedTime = new Date(Math.floor(now.getTime() / 1000) * 1000);
-
 
     const alreadyExists = await PowerLog.exists({
       clientId,
@@ -52,47 +49,42 @@ async function logPowerStatus({ clientId, power, source, topic }) {
       source,
       topic,
       timestamp: {
-        $gte: new Date(roundedTime.getTime() - 2000), 
-        $lt: new Date(roundedTime.getTime() + 2000),   
+        $gte: new Date(roundedTime.getTime() - 2000),
+        $lt: new Date(roundedTime.getTime() + 2000),
       },
     });
 
-    if (alreadyExists) {
-      console.log(`⚠️ Duplicate log skipped for ${clientId} (${power}) at ${roundedTime.toISOString()}`);
-      return;
-    }
+    if (alreadyExists) return;
 
-    const log = new PowerLog({
-      clientId,
-      power,
-      source,
-      topic,
-      timestamp: now,
-    });
-    console.log("Saving power log:", log);
+    const log = new PowerLog({ clientId, power, source, topic, timestamp: now });
     await log.save();
-    console.log(`⚡ Power log saved: ${clientId}, power=${power}, topic=${topic}`);
   } catch (err) {
     console.error(`❌ Failed to save power log for ${clientId}:`, err.message);
   }
 }
 
+async function logAutomationExecution({ clientId, ruleId, topic, action }) {
+  if (!['ON', 'OFF'].includes(action)) {
+    throw new Error('Invalid action');
+  }
+  await AutomationLog.create({ clientId, ruleId, topic, action });
+}
 
-
+function subscribeToTopic(topic) {
+  if (subscribedDevices.has(topic)) return;
+  client.subscribe(topic, (err) => {
+    if (!err) subscribedDevices.add(topic);
+  });
+}
 
 function subscribeDeviceTopics(device) {
   if (device.topics) {
     Object.values(device.topics).forEach(topic => {
-      if (typeof topic === 'string' && topic.trim()) {
-        subscribeToTopic(topic);
-      }
+      if (typeof topic === 'string' && topic.trim()) subscribeToTopic(topic);
     });
   }
-
   if (device.clientId) {
-    subscribeToTopic(`stat/${device.clientId}/POWER`);
-    subscribeToTopic(`stat/${device.clientId}/RESULT`);
-    subscribeToTopic(`stat/${device.clientId}/SENSOR`);
+    ['POWER', 'RESULT', 'SENSOR'].forEach(type => subscribeToTopic(`stat/${device.clientId}/${type}`));
     subscribeToTopic(`tele/${device.clientId}/LWT`);
   }
 }
@@ -102,9 +94,7 @@ client.on('connect', async () => {
   const devices = await Device.find({});
   devices.forEach(device => {
     subscribeDeviceTopics(device);
-    if (device.clientId) {
-      logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT client connected');
-    }
+    if (device.clientId) logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT connected');
   });
 });
 
@@ -112,9 +102,7 @@ client.on('reconnect', async () => {
   sendHttpEvent('stat', { status: 'Reconnected' });
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) {
-      logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT client reconnected');
-    }
+    if (device.clientId) logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT reconnected');
   });
 });
 
@@ -122,9 +110,7 @@ client.on('error', async (err) => {
   sendHttpEvent('disconnection', { status: 'Error', message: err.message });
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) {
-      logDeviceStatus(device.clientId, 'off', 'error', `MQTT error: ${err.message}`);
-    }
+    if (device.clientId) logDeviceStatus(device.clientId, 'off', 'error', `MQTT error: ${err.message}`);
   });
 });
 
@@ -132,9 +118,7 @@ client.on('offline', async () => {
   sendHttpEvent('disconnection', { status: 'Offline' });
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) {
-      logDeviceStatus(device.clientId, 'off', 'offline', 'MQTT client went offline');
-    }
+    if (device.clientId) logDeviceStatus(device.clientId, 'off', 'offline', 'MQTT offline');
   });
 });
 
@@ -142,28 +126,17 @@ client.on('message', async (topic, message) => {
   try {
     const trimmedTopic = topic.trim();
     const msgStr = message.toString();
-    console.log(`[DEBUG] Incoming message: topic='${trimmedTopic}', message='${msgStr}'`);
 
-    const statMatch = trimmedTopic.match(/^stat\/([^/]+)\/(RESULT|POWER|SENSOR)$/);
+    const statMatch = trimmedTopic.match(/^stat\/(.+?)\/(POWER|SENSOR)$/);
+    const lwtMatch = trimmedTopic.match(/^tele\/(.+?)\/LWT$/);
+
     if (statMatch) {
-      const clientId = statMatch[1];
-      const subTopic = statMatch[2];
-
-      if (subTopic === 'RESULT') {
-        // ❌ Skip logging to prevent duplication
-        return;
-      } else if (subTopic === 'POWER') {
+      const [_, clientId, subTopic] = statMatch;
+      if (subTopic === 'POWER') {
         const powerStatus = msgStr.toLowerCase();
-        if (powerStatus === 'on' || powerStatus === 'off') {
-          await logDeviceStatus(clientId, powerStatus, 'connected', `Power status from stat/POWER: ${powerStatus.toUpperCase()}`);
-          await logPowerStatus({
-            clientId,
-            power: powerStatus,
-            source: 'stat',
-            topic: trimmedTopic,
-          });
-        } else {
-          console.warn(`⚠️ Unrecognized power status '${powerStatus}' for device ${clientId}`);
+        if (['on', 'off'].includes(powerStatus)) {
+          await logDeviceStatus(clientId, powerStatus, 'connected', `POWER: ${powerStatus}`);
+          await logPowerStatus({ clientId, power: powerStatus, source: 'stat', topic: trimmedTopic });
         }
       } else if (subTopic === 'SENSOR') {
         try {
@@ -171,238 +144,107 @@ client.on('message', async (topic, message) => {
           for (const [entity, data] of Object.entries(sensorData)) {
             if (entity === 'Time') continue;
             if (typeof data === 'object' && data !== null) {
-              if (clientId === 'VIOT_E99614' && data.Id) {
-                delete data.Id;
-              }
-              const sensorEntry = new SensorData({
-                clientId,
-                entity,
-                data,
-                timestamp: new Date(),
-              });
+              if (clientId === 'VIOT_E99614' && data.Id) delete data.Id;
+              const sensorEntry = new SensorData({ clientId, entity, data, timestamp: new Date() });
               await sensorEntry.save();
-              console.log(`✅ Saved sensor data for ${clientId} entity ${entity}`);
             }
           }
         } catch (err) {
-          console.error('❌ Failed to parse SENSOR JSON:', err.message);
+          console.error('❌ SENSOR parse error:', err.message);
         }
       }
-      return;
-    }
-
-    const lwtMatch = trimmedTopic.match(/^tele\/([^/]+)\/LWT$/);
-    if (lwtMatch) {
+    } else if (lwtMatch) {
       const clientId = lwtMatch[1];
       const statusPayload = msgStr.toLowerCase();
       const power = statusPayload === 'online' ? 'on' : (statusPayload === 'offline' ? 'off' : 'unknown');
-      await logDeviceStatus(clientId, power, 'connected', `LWT status: ${msgStr}`);
-      return;
-    }
-
-    if (trimmedTopic.endsWith('/STATUS')) {
-      const clientId = trimmedTopic.split('/')[1];
-      const status = msgStr.toLowerCase();
-      if (status === 'on' || status === 'off') {
-        await logDeviceStatus(clientId, status, 'connected', 'Status update from tele STATUS');
-        return;
-      }
-    }
-
-    try {
-      const parsed = JSON.parse(msgStr);
-      const match = trimmedTopic.match(/^tele\/([^/]+)\/([^/]+)$/);
-      if (!match) return;
-
-      const clientId = match[1];
-      const { TempUnit, ...rest } = parsed;
-
-      const [entity, sensorPayload] = Object.entries(rest).find(
-        ([_, val]) => typeof val === 'object' && val !== null
-      ) || [];
-
-      if (!entity || !sensorPayload) return;
-
-      if (clientId === 'VIOT_E99614' && sensorPayload.Id) {
-        delete sensorPayload.Id;
-      }
-
-      const sensorEntry = new SensorData({
-        clientId,
-        entity,
-        data: sensorPayload,
-        timestamp: new Date(),
-      });
-
-      const savedEntry = await sensorEntry.save();
-      console.log('✅ Sensor entry saved:', savedEntry);
-    } catch (e) {
-      console.error('❗ Failed to parse telemetry JSON:', e.message);
+      await logDeviceStatus(clientId, power, 'connected', `LWT: ${msgStr}`);
     }
   } catch (err) {
-    console.error('❗ Top-level message error:', err.message);
+    console.error('❗ Message handler error:', err.message);
   }
 });
 
-function subscribeToTopic(topic) {
-  if (subscribedDevices.has(topic)) return;
-  client.subscribe(topic, (err) => {
-    if (err) {
-      console.error(`❌ Failed to subscribe to ${topic}:`, err.message);
-    } else {
-      subscribedDevices.add(topic);
-      console.log(`📡 Subscribed to ${topic}`);
-    }
-  });
-}
-
 async function getLatestSensorData(clientId) {
   try {
-    const latestSensor = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
-
-    const latestStatus = await DeviceStatusLog.findOne({ clientId }).sort({ timestamp: -1 });
-
-    if (!latestSensor && !latestStatus) {
-      return { success: false, message: 'No sensor or device status data available' };
-    }
-
-    const data = {
-      sensor: latestSensor || null,
-      status: latestStatus
-        ? {
-            power: latestStatus.power,
-            status: latestStatus.status,
-          }
-        : null,
-    };
-
-    return { success: true, data };
+    const sensor = await SensorData.findOne({ clientId }).sort({ timestamp: -1 });
+    const status = await DeviceStatusLog.findOne({ clientId }).sort({ timestamp: -1 });
+    if (!sensor && !status) return { success: false, message: 'No data available' };
+    return { success: true, data: { sensor, status } };
   } catch (err) {
-    console.error('❌ Error getting latest sensor data:', err.message);
-    return { success: false, message: 'Server error while retrieving data' };
+    return { success: false, message: 'Error retrieving data' };
   }
 }
-
 
 async function sendCommand(inputTopic, message) {
   return new Promise((resolve, reject) => {
-    if (!client.connected) return reject(new Error('MQTT client not connected'));
-
+    if (!client.connected) return reject(new Error('MQTT not connected'));
     const match = inputTopic.match(/^[^/]+\/([^/]+)\/[^/]+$/);
     if (!match) return reject(new Error('Invalid topic format'));
     const clientId = match[1];
-
     const commandTopic = `cmnd/${clientId}/POWER`;
-
-    if (typeof message !== 'string' || message.toUpperCase() !== 'TOGGLE') {
-      return reject(new Error('Only TOGGLE command is allowed'));
+    if (message.toUpperCase() !== 'TOGGLE' && message.toUpperCase() !== 'ON' && message.toUpperCase() !== 'OFF') {
+      return reject(new Error('Only TOGGLE, ON, OFF commands are allowed'));
     }
-
     client.publish(commandTopic, message.toUpperCase(), {}, (err) => {
       if (err) return reject(err);
-      resolve({ success: true, message: `Command sent to "${commandTopic}": ${message.toUpperCase()}` });
+      resolve({ success: true, message: `Sent ${message} to ${commandTopic}` });
     });
   });
 }
 
-
 async function setAutomationRule(clientId, topic, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
-  if (!clientId || !topic || !onTime || !offTime) {
-    throw new Error('Missing required automation rule fields');
-  }
-
+  if (!clientId || !topic || !onTime || !offTime) throw new Error('Missing required fields');
   try {
-    const rule = await Automation.create({
-      clientId,
-      topic,
-      onTime,
-      offTime,
-      timezone,
-    });
-
-    return { success: true, message: 'Automation rule created', rule };
+    const rule = await Automation.create({ clientId, topic, onTime, offTime, timezone });
+    return { success: true, message: 'Rule created', rule };
   } catch (err) {
-    if (err.code === 11000) {
-      throw new Error('A rule with the same on/off time already exists for this device');
-    }
+    if (err.code === 11000) throw new Error('Duplicate time rule');
     throw err;
   }
 }
-////////////////////////////////////
 
 async function updateAutomationRuleById(ruleId, updateData) {
   const { topic, onTime, offTime, timezone } = updateData;
-
-  if (!topic || !onTime || !offTime) {
-    throw new Error('Missing required update fields');
-  }
-
+  if (!topic || !onTime || !offTime) throw new Error('Missing fields');
   try {
     const updated = await Automation.findByIdAndUpdate(
       ruleId,
       { topic, onTime, offTime, timezone },
       { new: true, runValidators: true }
     );
-
-    if (!updated) {
-      throw new Error('Automation rule not found');
-    }
-
-    return { success: true, message: 'Automation rule updated', rule: updated };
+    if (!updated) throw new Error('Rule not found');
+    return { success: true, message: 'Rule updated', rule: updated };
   } catch (err) {
-    if (err.code === 11000) {
-      throw new Error('A rule with the same on/off time already exists for this device');
-    }
+    if (err.code === 11000) throw new Error('Duplicate time rule');
     throw err;
   }
 }
-///////////////////////////////
 
 async function getAutomationRulesByClientId(clientId) {
-  if (!clientId) {
-    throw new Error('Missing clientId');
-  }
-
+  if (!clientId) throw new Error('Missing clientId');
   const rules = await Automation.find({ clientId });
-
-  return {
-    success: true,
-    count: rules.length,
-    rules,
-  };
+  return { success: true, count: rules.length, rules };
 }
-///////////////////////////
 
 async function deleteAutomationRuleById(ruleId) {
   const deleted = await Automation.findByIdAndDelete(ruleId);
-
-  if (!deleted) {
-    return { success: false, message: 'Automation rule not found' };
-  }
-
-  return { success: true, message: 'Automation rule deleted' };
+  if (!deleted) return { success: false, message: 'Rule not found' };
+  return { success: true, message: 'Rule deleted' };
 }
-
-
 
 cron.schedule('* * * * *', async () => {
   const nowUtc = moment.utc();
-  try {
-    const automations = await Automation.find({});
-    for (const rule of automations) {
-      const now = nowUtc.clone().tz(rule.timezone);
-      const currentTimeStr = now.format('HH:mm');
-
-      if (currentTimeStr === rule.onTime) {
-        await sendCommand(rule.topic, 'ON');
-        console.log(`⚙️ Automation ON sent to ${rule.clientId} at ${currentTimeStr}`);
-      } else if (currentTimeStr === rule.offTime) {
-        await sendCommand(rule.topic, 'OFF');
-        console.log(`⚙️ Automation OFF sent to ${rule.clientId} at ${currentTimeStr}`);
-      }
+  const automations = await Automation.find({});
+  for (const rule of automations) {
+    const now = nowUtc.clone().tz(rule.timezone);
+    const time = now.format('HH:mm');
+    if (time === rule.onTime) {
+      await sendCommand(rule.topic, 'ON');
+      await logAutomationExecution({ clientId: rule.clientId, ruleId: rule._id, topic: rule.topic, action: 'ON' });
+    } else if (time === rule.offTime) {
+      await sendCommand(rule.topic, 'OFF');
+      await logAutomationExecution({ clientId: rule.clientId, ruleId: rule._id, topic: rule.topic, action: 'OFF' });
     }
-  } catch (err) {
-    console.error('⛔ Automation error:', err.message);
   }
 });
 
