@@ -47,7 +47,7 @@ UserSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     { id: this._id, email: this.email },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: '10m' }
+    { expiresIn: '1d' }
   );
  
 };
