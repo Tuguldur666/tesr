@@ -26,25 +26,19 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   });
 }
 
-async function logDeviceStatus(clientId, power, status, message = null) {
+async function logDeviceStatus(clientId, power, status, message = '') {
   try {
-    const update = {
-      power,
-      status,
-      timestamp: new Date(),
-    };
-
-    if (message) {
-      update.message = message; 
-    }
+    const current = await DeviceStatusLog.findOne({ clientId });
+    console.log(`Before update: ${clientId} power=${current?.power}, status=${current?.status}`);
 
     const result = await DeviceStatusLog.findOneAndUpdate(
       { clientId },
-      update,
+      { power, status, message, timestamp: new Date() },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log('logDeviceStatus result:', result);
+    console.log(`After update: ${clientId} power=${result.power}, status=${result.status}, message=${result.message}`);
+
     return result;
   } catch (err) {
     console.error(`❌ Failed to update status for ${clientId}:`, err.message);
@@ -86,7 +80,12 @@ async function logAutomationExecution({ clientId, ruleId, topic, action }) {
 function subscribeToTopic(topic) {
   if (subscribedDevices.has(topic)) return;
   client.subscribe(topic, (err) => {
-    if (!err) subscribedDevices.add(topic);
+    if (!err) {
+      subscribedDevices.add(topic);
+      console.log(`Subscribed to topic: ${topic}`);
+    } else {
+      console.error(`Failed to subscribe topic ${topic}:`, err.message);
+    }
   });
 }
 
@@ -101,76 +100,106 @@ function subscribeDeviceTopics(device) {
     subscribeToTopic(`tele/${device.clientId}/RESULT`);
     subscribeToTopic(`tele/${device.clientId}/LWT`);
     subscribeToTopic(`tele/${device.clientId}/SENSOR`);
+    subscribeToTopic(`stat/${device.clientId}/POWER`);
+    subscribeToTopic(`stat/${device.clientId}/RESULT`);
   }
 }
 
 client.on('connect', async () => {
   sendHttpEvent('connection');
+  console.log('MQTT connected');
   const devices = await Device.find({});
   devices.forEach(device => {
     subscribeDeviceTopics(device);
-    if (device.clientId) logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT connected');
+    if (device.clientId) logDeviceStatus(device.clientId, 'unknown', 'connected', 'MQTT connected');
   });
 });
 
 client.on('reconnect', async () => {
   sendHttpEvent('stat', { status: 'Reconnected' });
+  console.log('MQTT reconnected');
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) logDeviceStatus(device.clientId, 'on', 'connected', 'MQTT reconnected');
+    if (device.clientId) logDeviceStatus(device.clientId, 'unknown', 'connected', 'MQTT reconnected');
   });
 });
 
 client.on('error', async (err) => {
   sendHttpEvent('disconnection', { status: 'Error', message: err.message });
+  console.error('MQTT error:', err.message);
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) logDeviceStatus(device.clientId, 'off', 'error', `MQTT error: ${err.message}`);
+    if (device.clientId) logDeviceStatus(device.clientId, 'unknown', 'error', `MQTT error: ${err.message}`);
   });
 });
 
 client.on('offline', async () => {
   sendHttpEvent('disconnection', { status: 'Offline' });
+  console.log('MQTT offline');
   const devices = await Device.find({});
   devices.forEach(device => {
-    if (device.clientId) logDeviceStatus(device.clientId, 'off', 'offline', 'MQTT offline');
+    if (device.clientId) logDeviceStatus(device.clientId, 'unknown', 'offline', 'MQTT offline');
   });
 });
 
 client.on('message', async (topic, message) => {
-  console.log(`Message received on topic: ${topic}`);
+  const msgStr = message.toString();
+  console.log(`Message received on topic: ${topic} | payload: ${msgStr}`);
+
   try {
     const trimmedTopic = topic.trim();
-    const msgStr = message.toString();
 
-    const sensorMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/SENSOR$/);
-    const powerMatch = trimmedTopic.match(/^stat\/(.+?)\/POWER$/);
-    const resultMatch = trimmedTopic.match(/^stat\/(.+?)\/RESULT$/);
+    // POWER messages - plain ON/OFF
+    const powerMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/POWER$/);
+    // RESULT messages - JSON with POWER key
+    const resultMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/RESULT$/);
+    // LWT messages
     const lwtMatch = trimmedTopic.match(/^tele\/(.+?)\/LWT$/);
+    // SENSOR messages
+    const sensorMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/SENSOR$/);
 
     if (powerMatch) {
-      const clientId = powerMatch[1];
+      const clientId = powerMatch[2];
       const powerStatus = msgStr.toLowerCase();
       if (['on', 'off'].includes(powerStatus)) {
         console.log(`POWER topic update for ${clientId}: power=${powerStatus}`);
-        await logDeviceStatus(clientId, powerStatus, 'connected');
-        await logPowerStatus({ clientId, power: powerStatus, source: 'stat', topic: trimmedTopic });
+        await logDeviceStatus(clientId, powerStatus, 'connected', `POWER: ${powerStatus}`);
+        await logPowerStatus({ clientId, power: powerStatus, source: powerMatch[1], topic: trimmedTopic });
+      } else {
+        console.log(`POWER topic ${clientId} received unknown power state: ${msgStr}`);
       }
     } else if (resultMatch) {
-      const clientId = resultMatch[1];
+      const clientId = resultMatch[2];
       try {
         const resultPayload = JSON.parse(msgStr);
         if (resultPayload.POWER) {
           const powerStatus = resultPayload.POWER.toLowerCase();
           if (['on', 'off'].includes(powerStatus)) {
             console.log(`RESULT topic update for ${clientId}: power=${powerStatus}`);
-            await logDeviceStatus(clientId, powerStatus, 'connected');
-            await logPowerStatus({ clientId, power: powerStatus, source: 'stat', topic: trimmedTopic });
+            await logDeviceStatus(clientId, powerStatus, 'connected', `RESULT POWER: ${powerStatus}`);
+            await logPowerStatus({ clientId, power: powerStatus, source: resultMatch[1], topic: trimmedTopic });
           }
         }
       } catch (err) {
         console.error(`Failed to parse RESULT payload for ${clientId}:`, err.message);
       }
+    } else if (lwtMatch) {
+      const clientId = lwtMatch[1];
+      const statusPayload = msgStr.toLowerCase();
+      const status = statusPayload === 'online' ? 'connected' : 'disconnected';
+      // For LWT, update only status and message, do NOT overwrite power
+      console.log(`LWT message for ${clientId}: status=${status}`);
+      const currentStatus = await DeviceStatusLog.findOne({ clientId });
+      await DeviceStatusLog.findOneAndUpdate(
+        { clientId },
+        {
+          status,
+          message: `LWT: ${msgStr}`,
+          timestamp: new Date(),
+          power: currentStatus?.power || 'unknown',
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
     } else if (sensorMatch) {
       const clientId = sensorMatch[2];
       try {
@@ -199,12 +228,6 @@ client.on('message', async (topic, message) => {
       } catch (err) {
         console.error('❌ SENSOR parse error:', err.message);
       }
-    } else if (lwtMatch) {
-      const clientId = lwtMatch[1];
-      const statusPayload = msgStr.toLowerCase();
-      const power = statusPayload === 'online' ? 'on' : (statusPayload === 'offline' ? 'off' : 'unknown');
-      console.log(`LWT topic update for ${clientId}: power=${power}`);
-      await logDeviceStatus(clientId, power, 'connected', `LWT: ${msgStr}`);
     } else {
       console.log(`Unhandled topic: ${trimmedTopic}`);
     }
@@ -232,7 +255,7 @@ async function sendCommand(inputTopic, message) {
     if (!match) return reject(new Error('Invalid topic format'));
     const clientId = match[1];
     const commandTopic = `cmnd/${clientId}/POWER`;
-    if (message.toUpperCase() !== 'TOGGLE' && message.toUpperCase() !== 'ON' && message.toUpperCase() !== 'OFF') {
+    if (!['TOGGLE', 'ON', 'OFF'].includes(message.toUpperCase())) {
       return reject(new Error('Only TOGGLE, ON, OFF commands are allowed'));
     }
     client.publish(commandTopic, message.toUpperCase(), {}, (err) => {
