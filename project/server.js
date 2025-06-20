@@ -19,7 +19,8 @@ app.use(express.json());
 
 app.use(cors({
   origin: true,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['x-refresh-token'],
 }));
 
 
