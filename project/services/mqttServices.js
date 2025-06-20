@@ -305,6 +305,28 @@ async function deleteAutomationRuleById(ruleId) {
   return { success: true, message: 'Rule deleted' };
 }
 
+
+async function getPowerLogs(userId) {
+  if (!userId) throw new Error('userId is required');
+
+  const devices = await Device.find({ owner: userId }); 
+  const clientIds = devices.map((d) => d.clientId);
+
+  if (clientIds.length === 0) {
+    return { success: true, count: 0, logs: [] };
+  }
+
+  const logs = await PowerLog.find({ clientId: { $in: clientIds } })
+    .sort({ timestamp: -1 });
+
+  return {
+    success: true,
+    count: logs.length,
+    logs,
+  };
+}
+
+
 cron.schedule('* * * * *', async () => {
   const nowUtc = moment.utc();
   const automations = await Automation.find({});
@@ -329,4 +351,5 @@ module.exports = {
   updateAutomationRuleById,
   getAutomationRulesByClientId,
   deleteAutomationRuleById,
+  getPowerLogs,
 };

@@ -170,3 +170,16 @@ exports.deleteAutomationRuleById = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
+
+///////////////////////
+
+exports.getPowerLogs = async (req, res) => {
+  const userId = req.params.userId
+  try {
+    const result = await mqttService.getPowerLogs(userId);
+    res.json(result);
+  } catch (err) {
+    console.error('Error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

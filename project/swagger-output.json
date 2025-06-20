@@ -340,7 +340,7 @@
         }
       }
     },
-    "/mqt/data": {
+    "/mqtt/data": {
       "get": {
         "tags": [
           "MQTT"
@@ -402,7 +402,7 @@
         }
       }
     },
-    "/mqt/toggle": {
+    "/mqtt/toggle": {
       "post": {
         "tags": [
           "MQTT"
@@ -438,7 +438,7 @@
         }
       }
     },
-    "/mqt/automation/{clientId}": {
+    "/mqtt/automation/{clientId}": {
       "post": {
         "tags": [
           "Automation"
@@ -494,7 +494,7 @@
         }
       }
     },
-    "/mqt/update/{ruleId}": {
+    "/mqtt/update/{ruleId}": {
       "put": {
         "description": "",
         "parameters": [
@@ -545,7 +545,7 @@
         }
       }
     },
-    "/mqt/getRule/{clientId}": {
+    "/mqtt/getRule/{clientId}": {
       "get": {
         "description": "",
         "parameters": [
@@ -569,7 +569,7 @@
         }
       }
     },
-    "/mqt/delete/{ruleId}": {
+    "/mqtt/delete/{ruleId}": {
       "delete": {
         "description": "",
         "parameters": [
@@ -593,7 +593,28 @@
         }
       }
     },
-    "/mqt/connection": {
+    "/mqtt/powerlogs/{userId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/mqtt/connection": {
       "post": {
         "description": "",
         "responses": {
@@ -603,7 +624,7 @@
         }
       }
     },
-    "/mqt/tele": {
+    "/mqtt/tele": {
       "post": {
         "description": "",
         "responses": {
@@ -613,7 +634,7 @@
         }
       }
     },
-    "/mqt/teleKh": {
+    "/mqtt/teleKh": {
       "post": {
         "description": "",
         "responses": {
@@ -623,7 +644,7 @@
         }
       }
     },
-    "/mqt/stat": {
+    "/mqtt/stat": {
       "post": {
         "description": "",
         "responses": {
@@ -633,7 +654,7 @@
         }
       }
     },
-    "/mqt/discooonection": {
+    "/mqtt/discooonection": {
       "post": {
         "description": "",
         "responses": {

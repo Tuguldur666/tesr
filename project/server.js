@@ -56,7 +56,7 @@ const verifyRouter = require('./routes/otps');
 app.use('/otp', verifyRouter);
 
 const mqtRouter = require('./routes/mqtt');
-app.use('/mqt', mqtRouter);
+app.use('/mqtt', mqtRouter);
 
 const deviceRouter = require('./routes/device');
 app.use('/device', deviceRouter);
