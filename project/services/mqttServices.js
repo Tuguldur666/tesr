@@ -177,7 +177,6 @@ client.on('message', async (topic, message) => {
           if (['on', 'off'].includes(powerStatus)) {
             console.log(`RESULT topic update for ${clientId}: power=${powerStatus}`);
             await logDeviceStatus(clientId, powerStatus, 'connected', `RESULT POWER: ${powerStatus}`);
-            await logPowerStatus({ clientId, power: powerStatus, source: resultMatch[1], topic: trimmedTopic });
           }
         }
       } catch (err) {
