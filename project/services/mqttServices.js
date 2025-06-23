@@ -149,13 +149,9 @@ client.on('message', async (topic, message) => {
   try {
     const trimmedTopic = topic.trim();
 
-    // POWER messages - plain ON/OFF
     const powerMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/POWER$/);
-    // RESULT messages - JSON with POWER key
     const resultMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/RESULT$/);
-    // LWT messages
     const lwtMatch = trimmedTopic.match(/^tele\/(.+?)\/LWT$/);
-    // SENSOR messages
     const sensorMatch = trimmedTopic.match(/^(stat|tele)\/(.+?)\/SENSOR$/);
 
     if (powerMatch) {
