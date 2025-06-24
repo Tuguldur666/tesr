@@ -391,7 +391,7 @@
       }
     },
     "/mqtt/data": {
-      "get": {
+      "post": {
         "tags": [
           "MQTT"
         ],

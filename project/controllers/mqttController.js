@@ -233,15 +233,18 @@ exports.deleteAutomationRuleById = async (req, res) => {
 exports.getPowerLogs = async (req, res) => {
   /*
     #swagger.tags = ['Power Logs']
-    #swagger.parameters['body'] = {
-      in: 'body',
-      required: false,
-      schema : { 
-      accessToken : " "
-      }
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      description: 'Bearer access token',
+      required: true,
+      type: 'string'
     }
   */
-  const accessToken = req.body;
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
+    }
+   const accessToken = authHeader.split(' ')[1];
 
   if (!accessToken) {
     return res.status(400).json({ success: false, message: 'Missing accessToken' });
