@@ -79,11 +79,16 @@ exports.setAutomation = async (req, res) => {
   /*
     #swagger.tags = ['Automation']
     #swagger.summary = 'Set ON/OFF automation times for a device'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      description: 'Bearer access token',
+      required: true,
+      type: 'string'
+    }
     #swagger.parameters['body'] = {
       in: 'body',
       required: false,
        schema: {
-        accessToken: " ",
         clientId: " ",
         entity: " ",
         onTime: " ",
@@ -92,8 +97,14 @@ exports.setAutomation = async (req, res) => {
       }
     }
   */
+
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
+    }
+  const accessToken = authHeader.split(' ')[1];
+
   const {
-    accessToken,
     clientId,
     entity,
     onTime,
@@ -101,6 +112,7 @@ exports.setAutomation = async (req, res) => {
     timezone = 'Asia/Ulaanbaatar',
   } = req.body;
 
+  
   if (!accessToken || !clientId || !entity || !onTime || !offTime) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
