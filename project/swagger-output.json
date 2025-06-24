@@ -631,6 +631,23 @@
         }
       }
     },
+    "/mqtt/getAllDevices": {
+      "get": {
+        "tags": [
+          "MQTT"
+        ],
+        "summary": "Get all currently connected devices",
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/mqtt/connection": {
       "post": {
         "description": "",
@@ -725,19 +742,6 @@
           },
           "409": {
             "description": "Conflict"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
-    "/device/devices": {
-      "get": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
           },
           "503": {
             "description": "Service Unavailable"
