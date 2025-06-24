@@ -18,28 +18,32 @@ exports.getConnectedDevices = async (req, res) => {
 exports.getLatestData = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
-    #swagger.summary = 'Get Latest Temperature Data'
+    #swagger.summary = 'Get Latest Temperature or Sensor Data'
     #swagger.parameters['body'] = {
       in: 'body',
-      required: false,
+      required: true,
       schema: {
-        clientId: " ",
-        entity: " "
+        clientId: 'VIOT_609EF0',
+        entity: 'SI7021'
       }
     }
   */
   try {
     const { clientId, entity } = req.body;
-    if (!clientId && !entity) {
-      return res.status(400).json({ success: false, message: 'Missing field' });
+
+    if (!clientId || !entity) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: clientId and entity' });
     }
 
     const result = await mqttService.getLatestSensorData(clientId, entity);
+
     return res.status(result.success ? 200 : 404).json(result);
   } catch (error) {
-    return res.status(503).json({ success: false, message: error.message });
+    return res.status(503).json({ success: false, message: 'Service unavailable', error: error.message });
   }
 };
+
+
 
 /////////////////////////////////////////////////
 

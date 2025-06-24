@@ -5,8 +5,6 @@ const swaggerdoc = require('./swagger-output.json');
 const errorHandler = require('./middleware/errorHandler');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const serverless = require('serverless-http');
-const cookieParser = require('cookie-parser');
 const mqttController = require('./controllers/httpEventController');
 const mongoose = require('mongoose');
 const SensorData = require('./models/data');
@@ -25,29 +23,7 @@ app.use(cors({
 
 
 
-
-app.use((req, res, next) => {
-  if (req.method === 'POST' && (!req.body || Object.keys(req.body).length === 0)) {
-    let data = '';
-    req.on('data', chunk => data += chunk);
-    req.on('end', () => {
-      if (data) console.log(`⚠️ Raw body for ${req.path}:`, data);
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
-
-app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
-
-app.set('view engine', 'ejs');
-
-
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerdoc));
-
 
 const userRouter = require('./routes/users');
 app.use('/users', userRouter);
@@ -93,19 +69,19 @@ async function check() {
 }
 
 
-connectToMongoDB().then((mongooseInstance) => {
-  app.locals.db = mongooseInstance;
-  const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+connectToMongoDB()
+  .then(() => {
+    const PORT = process.env.PORT;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+    check();
+  })
+  .catch(err => {
+    console.error('Database connection failed:', err);
+    process.exit(1);
   });
- 
-  check();
-}).catch(err => {
-  console.error('Failed to connect to MongoDB:', err);
-});
 
 
 
-module.exports.handler = serverless(app);
 module.exports = app;

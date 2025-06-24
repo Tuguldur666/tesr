@@ -24,13 +24,9 @@ exports.registerUser = async (req, res) => {
   if (result.success) {
     const { accessToken, refreshToken } = result;
 
-    res.cookie('jwt', refreshToken, {
-      httpOnly: true,
-      secure: false, 
-      sameSite: 'None',
-      maxAge: 24 * 60 * 60 * 1000, 
-    });
+    res.set('x-refresh-token', refreshToken);
 
+    
     return res.status(200).json({
       success:true,
       message: result.message,
@@ -68,14 +64,6 @@ exports.login = async (req, res) => {
     }
 
     const { accessToken, refreshToken } = result;
-
-
-    res.cookie('jwt', refreshToken, {
-      httpOnly: true,
-      secure: false, 
-      sameSite: 'None',
-      maxAge: 24 * 60 * 60 * 1000 
-    });
 
     res.set('x-refresh-token', refreshToken);
     
