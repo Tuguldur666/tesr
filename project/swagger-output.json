@@ -239,7 +239,7 @@
           "Auth"
         ],
         "summary": "Send OTP for password reset",
-        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "description": "Sends a 6-digit OTP",
         "parameters": [
           {
             "name": "body",
@@ -349,77 +349,19 @@
         "description": "",
         "parameters": [
           {
-            "name": "clientId",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "description": "Device ID to get latest sensor data for",
-            "example": "VIOT_0D2BEC"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Latest sensor data",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": true
-                },
-                "data": {
-                  "type": "object",
-                  "properties": {}
-                }
-              },
-              "xml": {
-                "name": "main"
-              }
-            }
-          },
-          "404": {
-            "description": "No sensor data available",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": false
-                },
-                "message": {
-                  "type": "string",
-                  "example": "No sensor data available"
-                }
-              },
-              "xml": {
-                "name": "main"
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/mqtt/toggle": {
-      "post": {
-        "tags": [
-          "MQTT"
-        ],
-        "summary": "Send TOGGLE command to device power topic",
-        "description": "",
-        "parameters": [
-          {
             "name": "body",
             "in": "body",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "object",
               "properties": {
                 "clientId": {
                   "type": "string",
-                  "example": ""
+                  "example": " "
+                },
+                "entity": {
+                  "type": "string",
+                  "example": " "
                 }
               }
             }
@@ -432,13 +374,56 @@
           "400": {
             "description": "Bad Request"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "404": {
+            "description": "Not Found"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/mqtt/automation/{clientId}": {
+    "/mqtt/toggle": {
+      "post": {
+        "tags": [
+          "MQTT"
+        ],
+        "summary": "Get Latest Temperature Data",
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientId": {
+                  "type": "string",
+                  "example": " "
+                },
+                "entity": {
+                  "type": "string",
+                  "example": " "
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/mqtt/automation": {
       "post": {
         "tags": [
           "Automation"
@@ -447,31 +432,31 @@
         "description": "",
         "parameters": [
           {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string",
-            "description": "Device client ID",
-            "example": "clientId"
-          },
-          {
             "name": "body",
             "in": "body",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "object",
               "properties": {
-                "topic": {
+                "accessToken": {
                   "type": "string",
-                  "example": "cmnd/clientId/POWER"
+                  "example": " "
+                },
+                "clientId": {
+                  "type": "string",
+                  "example": " "
+                },
+                "entity": {
+                  "type": "string",
+                  "example": " "
                 },
                 "onTime": {
                   "type": "string",
-                  "example": "07:30"
+                  "example": " "
                 },
                 "offTime": {
                   "type": "string",
-                  "example": "18:00"
+                  "example": " "
                 },
                 "timezone": {
                   "type": "string",
@@ -482,45 +467,50 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created"
           },
           "400": {
             "description": "Bad Request"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "409": {
+            "description": "Conflict"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/mqtt/update/{ruleId}": {
+    "/mqtt/update": {
       "put": {
+        "tags": [
+          "Update automation"
+        ],
         "description": "",
         "parameters": [
           {
-            "name": "ruleId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
             "name": "body",
             "in": "body",
+            "required": false,
             "schema": {
               "type": "object",
               "properties": {
-                "topic": {
-                  "example": "any"
+                "ruleId": {
+                  "type": "string",
+                  "example": " "
                 },
                 "onTime": {
-                  "example": "any"
+                  "type": "string",
+                  "example": " "
                 },
                 "offTime": {
-                  "example": "any"
+                  "type": "string",
+                  "example": " "
                 },
                 "timezone": {
-                  "example": "any"
+                  "type": "string",
+                  "example": " "
                 }
               }
             }
@@ -539,21 +529,36 @@
           "409": {
             "description": "Conflict"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/mqtt/getRule/{clientId}": {
+    "/mqtt/getRule": {
       "get": {
+        "tags": [
+          "Get automation"
+        ],
         "description": "",
         "parameters": [
           {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "clientId": {
+                  "type": "string",
+                  "example": " "
+                },
+                "entity": {
+                  "type": "string",
+                  "example": " "
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -563,53 +568,65 @@
           "400": {
             "description": "Bad Request"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/mqtt/delete/{ruleId}": {
+    "/mqtt/delete": {
       "delete": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "ruleId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
+        "tags": [
+          "Delete automation"
         ],
+        "description": "",
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "404": {
             "description": "Not Found"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/mqtt/powerlogs/{userId}": {
+    "/mqtt/powerlogs": {
       "get": {
+        "tags": [
+          "Power Logs"
+        ],
         "description": "",
         "parameters": [
           {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "accessToken": {
+                  "type": "string",
+                  "example": " "
+                }
+              }
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "OK"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "400": {
+            "description": "Bad Request"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -666,28 +683,34 @@
     },
     "/device/registerDevices": {
       "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Register a new device",
         "description": "",
         "parameters": [
           {
             "name": "body",
             "in": "body",
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
                 "clientId": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "VIOT_0D2BEC"
                 },
                 "entity": {
-                  "example": "any"
-                },
-                "category": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "SI7021"
                 },
                 "type": {
-                  "example": "any"
+                  "type": "string",
+                  "example": "th"
                 },
-                "metadata": {
-                  "example": "any"
+                "userId": {
+                  "type": "string",
+                  "example": "64fa5db7cda63fd35f7c321a"
                 }
               }
             }
@@ -697,11 +720,14 @@
           "201": {
             "description": "Created"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "409": {
             "description": "Conflict"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -713,280 +739,94 @@
           "200": {
             "description": "OK"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
     },
-    "/device/{clientId}": {
+    "/device/getUserId": {
       "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/device/category/{category}": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "category",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/device/updateDevices/{clientId}": {
-      "put": {
         "tags": [
           "Devices"
         ],
-        "summary": "Update a device by clientId",
+        "summary": "Get device details by deviceId",
         "description": "",
         "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string",
-            "description": "The client ID of the device to update",
-            "example": "tasmota_2D22D0"
-          },
           {
             "name": "body",
             "in": "body",
-            "description": "Device data to update",
             "required": true,
             "schema": {
               "type": "object",
               "properties": {
-                "type": {
+                "accessToken": {
                   "type": "string",
-                  "example": "object"
-                },
-                "properties": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "example": "string"
-                        },
-                        "example": {
-                          "type": "string",
-                          "example": "TEST-VIOTZBBRIDGE"
-                        }
-                      }
-                    },
-                    "metadata": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "example": "object"
-                        },
-                        "properties": {
-                          "type": "object",
-                          "properties": {
-                            "programVersion": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "15.0.0"
-                                }
-                              }
-                            },
-                            "ipAddress": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "192.168.1.100"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    },
-                    "topics": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "example": "object"
-                        },
-                        "properties": {
-                          "type": "object",
-                          "properties": {
-                            "sensor": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "tele/tasmota_2D22D0/SENSOR"
-                                }
-                              }
-                            },
-                            "status": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "tele/tasmota_2D22D0/STATUS"
-                                }
-                              }
-                            },
-                            "statusCommand": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "cmnd/tasmota_2D22D0/STATUS"
-                                }
-                              }
-                            },
-                            "zbReceived": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "tele/tasmota_2D22D0/ZbReceived"
-                                }
-                              }
-                            },
-                            "lwt": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "example": "string"
-                                },
-                                "example": {
-                                  "type": "string",
-                                  "example": "tele/tasmota_2D22D0/LWT"
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
+                  "example": " "
                 }
               }
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Device successfully updated",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "success": {
-                  "type": "boolean",
-                  "example": true
-                },
-                "data": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "example": "TEST-VIOTZBBRIDGE"
-                    }
-                  }
-                }
-              },
-              "xml": {
-                "name": "main"
-              }
-            }
-          },
-          "404": {
-            "description": "Device not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/device/deleteDevices/{clientId}": {
-      "delete": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "clientId",
-            "in": "path",
-            "required": true,
-            "type": "string"
           }
         ],
         "responses": {
           "200": {
             "description": "OK"
           },
+          "400": {
+            "description": "Bad Request"
+          },
           "404": {
             "description": "Not Found"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/device/deleteDevice": {
+      "delete": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Unregister/delete a device",
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "accessToken": {
+                  "type": "string",
+                  "example": " "
+                },
+                "clientId": {
+                  "type": "string",
+                  "example": "VIOT_0D2BEC"
+                },
+                "entity": {
+                  "type": "string",
+                  "example": "SI7021"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }

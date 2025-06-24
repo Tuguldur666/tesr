@@ -2,10 +2,8 @@ const mongoose = require('mongoose');
 
 const powerLogSchema = new mongoose.Schema({
   clientId: { type: String, required: true },
+  entity: { type: String, required: true },
   power: { type: String, required: true },
-  source: { type: String, required: true },
-  topic: { type: String, required: true },
-  timestamp: { type: Date, required: true },
 });
 
 powerLogSchema.index(

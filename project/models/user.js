@@ -45,9 +45,9 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
 
 UserSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { id: this._id, email: this.email },
+    { id: this._id, phoneNumber : this.phoneNumber},
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: '7h' }
+    { expiresIn: '1d' }
   );
  
 };
@@ -55,9 +55,9 @@ UserSchema.methods.generateAccessToken = function () {
 UserSchema.methods.generateReshreshToken = function () {
   console.log(process.env.REFRESH_TOKEN_SECRET)
   return jwt.sign(
-    { id: this._id, email: this.email },
+    { id: this._id ,phoneNumber : this.phoneNumber},
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: '1d' }
+    { expiresIn: '7d' }
   );
 
 };

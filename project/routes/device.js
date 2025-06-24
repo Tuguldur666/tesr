@@ -5,14 +5,8 @@ const deviceController = require('../controllers/deviceController');
 
 router.post('/registerDevices', deviceController.registerDevice);
 
-router.get('/devices', deviceController.getAllDevices);
+router.get('/getUserId', deviceController.getDeviceById);
 
-router.get('/:clientId', deviceController.getDeviceById);
-
-router.get('/category/:category', deviceController.getDevicesByCategory);
-
-router.put('/updateDevices/:clientId', deviceController.updateDevice);
-
-router.delete('/deleteDevices/:clientId', deviceController.unregisterDevice);
+router.delete('/deleteDevice', deviceController.unregisterDevice);
 
 module.exports = router;

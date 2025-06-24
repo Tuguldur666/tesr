@@ -1,128 +1,144 @@
 const mqttService = require('../services/mqttServices');
 
 
+exports.getConnectedDevices = async (req, res) => {
+  /*
+    #swagger.tags = ['MQTT']
+    #swagger.summary = 'Get all currently connected devices'
+  */
+  try {
+    const result = await mqttService.getConnectedDevices();
+    res.status(result.success ? 200 : 500).json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Unexpected error', error: err.message });
+  }
+};
+
+//////////////////////////////////////////////////
 exports.getLatestData = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
     #swagger.summary = 'Get Latest Temperature Data'
-    #swagger.parameters['clientId'] = {
-      in: 'query',
+    #swagger.parameters['body'] = {
+      in: 'body',
       required: false,
-      type: 'string',
-      description: 'Device ID to get latest sensor data for',
-      example: 'VIOT_0D2BEC'
-    }
-    #swagger.responses[200] = {
-      description: 'Latest sensor data',
-      schema: { success: true, data: {} }
-    }
-    #swagger.responses[404] = {
-      description: 'No sensor data available',
-      schema: { success: false, message: 'No sensor data available' }
+      schema: {
+        clientId: " ",
+        entity: " "
+      }
     }
   */
   try {
-    const clientId = req.query.clientId; 
-    const result = await mqttService.getLatestSensorData(clientId);
-    res.status(result.success ? 200 : 404).json(result);
+    const { clientId, entity } = req.body;
+    if (!clientId && !entity) {
+      return res.status(400).json({ success: false, message: 'Missing field' });
+    }
+
+    const result = await mqttService.getLatestSensorData(clientId, entity);
+    return res.status(result.success ? 200 : 404).json(result);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(503).json({ success: false, message: error.message });
   }
 };
 
+/////////////////////////////////////////////////
 
 exports.sendCommand = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
-    #swagger.summary = 'Send TOGGLE command to device power topic'
+    #swagger.summary = 'Get Latest Temperature Data'
     #swagger.parameters['body'] = {
       in: 'body',
-      required: true,
+      required: false,
       schema: {
-        clientId: ''
+        clientId: " ",
+        entity: " "
       }
     }
   */
-  const { clientId } = req.body;
+  const { clientId ,entity} = req.body;
 
   if (!clientId || typeof clientId !== 'string') {
     return res.status(400).json({ success: false, message: 'Missing or invalid clientId' });
   }
-
-  const topic = `cmnd/${clientId}/POWER`;
-  const message = 'TOGGLE';
+  if (!clientId && !entity) {
+      return res.status(400).json({ success: false, message: 'Missing field' });
+  }
 
   try {
-    const result = await mqttService.sendCommand(topic, message);
-    res.status(result.success ? 200 : 500).json(result);
+    const result = await mqttService.sendCommand(clientId , entity);
+    res.status(result.success ? 200 : 503).json(result);
   } catch (error) {
-    console.error('Error sending MQTT command:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(503).json({ success: false, message: error.message });
   }
 };
 
-
-
-
-
+///////////////////////////////////////////////////////
 
 exports.setAutomation = async (req, res) => {
   /*
     #swagger.tags = ['Automation']
     #swagger.summary = 'Set ON/OFF automation times for a device'
-    #swagger.parameters['clientId'] = {
-      in: 'path',
-      required: true,
-      type: 'string',
-      description: 'Device client ID',
-      example: 'clientId'
-    }
     #swagger.parameters['body'] = {
       in: 'body',
-      required: true,
-      schema: {
-        topic: "cmnd/clientId/POWER",
-        onTime: "07:30",
-        offTime: "18:00",
-        timezone: "Asia/Ulaanbaatar"
+      required: false,
+       schema: {
+        accessToken: " ",
+        clientId: " ",
+        entity: " ",
+        onTime: " ",
+        offTime: " ",
+        timezone : "Asia/Ulaanbaatar"
       }
     }
   */
-
-  const deviceId = req.params.clientId;
   const {
-    topic,
+    accessToken,
+    clientId,
+    entity,
     onTime,
     offTime,
     timezone = 'Asia/Ulaanbaatar',
   } = req.body;
 
-  if (!deviceId || !topic || !onTime || !offTime) {
+  if (!accessToken || !clientId || !entity || !onTime || !offTime) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
   try {
-    const result = await mqttService.setAutomationRule(deviceId, topic, onTime, offTime, timezone);
-    res.json(result);
+    const result = await mqttService.setAutomationRule(accessToken, clientId, entity, onTime, offTime, timezone);
+    res.status(result.success ? 201 : 409).json(result);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(503).json({ success: false, message: error.message });
   }
 };
 
-/////////////////////////////////////////////
+////////////////////////////////////////////////////////
 
 exports.updateAutomationRuleById = async (req, res) => {
-  const { ruleId } = req.params;
-  const { topic, onTime, offTime, timezone } = req.body;
+  /*
+    #swagger.tags = ['Update automation']
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: false,
+      schema : {
+      ruleId : " ",
+      onTime: " ", 
+      offTime: " ", 
+      timezone: " " 
+    }
+  }
+  */
+  const { ruleId, onTime, offTime, timezone } = req.body;
 
-  if (!topic || !onTime || !offTime) {
-    return res.status(400).json({ success: false, message: 'Missing required update fields' });
+  if (!ruleId || !onTime || !offTime) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
   try {
     const updated = await mqttService.updateAutomationRuleById(
       ruleId,
-      { topic, onTime, offTime, timezone },
+      { onTime, offTime, timezone },
       { new: true, runValidators: true }
     );
 
@@ -130,56 +146,95 @@ exports.updateAutomationRuleById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Automation rule not found' });
     }
 
-    res.json({ success: true, message: 'Automation rule updated', rule: updated });
+    res.status(200).json({ success: true, message: 'Automation rule updated', rule: updated });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ success: false, message: 'Duplicate on/off time for this device' });
     }
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    res.status(503).json({ success: false, message: 'Service error', error: err.message });
   }
 };
-//////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////
 
 exports.getAutomationRulesByClientId = async (req, res) => {
-  const { clientId } = req.params;
+  /*
+    #swagger.tags = ['Get automation']
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: false,
+      schema : {
+      clientId: " ",
+      entity: " "
+      },
+  }
+  */
+  const { clientId, entity } = req.body;
 
   if (!clientId) {
     return res.status(400).json({ success: false, message: 'Missing clientId' });
   }
 
   try {
-    const rules = await mqttService.getAutomationRulesByClientId(clientId);
-    res.json({ success: true, count: rules.length, rules });
+    const rules = await mqttService.getAutomationRulesByClientId(clientId, entity);
+    res.status(200).json({ success: true, count: rules.length, rules });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    res.status(503).json({ success: false, message: 'Service error', error: err.message });
   }
 };
 
+///////////////////////////////////////////////////////////
+
 exports.deleteAutomationRuleById = async (req, res) => {
-  const { ruleId } = req.params;
+  /*
+    #swagger.tags = ['Delete automation']
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: false,
+      schema: {
+      ruleId: " "
+      }
+  */
+  const ruleId  = req.body;
+
+  if (!ruleId) {
+    return res.status(400).json({ success: false, message: 'Missing ruleId' });
+  }
 
   try {
     const deleted = await mqttService.deleteAutomationRuleById(ruleId);
-
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Automation rule not found' });
     }
 
-    res.json({ success: true, message: 'Automation rule deleted' });
+    res.status(200).json({ success: true, message: 'Automation rule deleted' });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    res.status(503).json({ success: false, message: 'Service error', error: err.message });
   }
 };
 
-///////////////////////
 
 exports.getPowerLogs = async (req, res) => {
-  const userId = req.params.userId
+  /*
+    #swagger.tags = ['Power Logs']
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: false,
+      schema : { 
+      accessToken : " "
+      }
+    }
+  */
+  const accessToken = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ success: false, message: 'Missing accessToken' });
+  }
+
   try {
-    const result = await mqttService.getPowerLogs(userId);
-    res.json(result);
+    const result = await mqttService.getPowerLogs(accessToken);
+    res.status(200).json(result);
   } catch (err) {
-    console.error('Error:', err.message);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(503).json({ success: false, message: 'Service error', error: err.message });
   }
 };

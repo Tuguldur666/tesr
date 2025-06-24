@@ -4,11 +4,12 @@ const mqttController = require('../controllers/mqttController');
 
 router.get('/data', mqttController.getLatestData);
 router.post('/toggle', mqttController.sendCommand);
-router.post('/automation/:clientId', mqttController.setAutomation);
-router.put('/update/:ruleId', mqttController.updateAutomationRuleById);
-router.get('/getRule/:clientId', mqttController.getAutomationRulesByClientId);
-router.delete('/delete/:ruleId', mqttController.deleteAutomationRuleById);
-router.get('/powerlogs/:userId', mqttController.getPowerLogs);
+router.post('/automation', mqttController.setAutomation);
+router.put('/update', mqttController.updateAutomationRuleById);
+router.get('/getRule', mqttController.getAutomationRulesByClientId);
+router.delete('/delete', mqttController.deleteAutomationRuleById);
+router.get('/powerlogs', mqttController.getPowerLogs);
+router.get('/getAllDevices', mqttController.getConnectedDevices);
 
 // /////////////////////////////////////////////////////////////
 
@@ -40,4 +41,3 @@ router.post('/discooonection', (req, res) => {
 
 
 module.exports = router;
-//sex

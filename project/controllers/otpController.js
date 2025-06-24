@@ -47,7 +47,7 @@ exports.forgotPass = async (req, res) => {
   /*
     #swagger.tags = ['Auth']
     #swagger.summary = 'Send OTP for password reset'
-    #swagger.description = 'Sends a 6-digit OTP to the user’s registered phone number for password reset.'
+    #swagger.description = 'Sends a 6-digit OTP'
     #swagger.parameters['body'] = {
       in: 'body',
       required: true,

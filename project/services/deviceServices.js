@@ -1,42 +1,24 @@
 const Device = require('../models/Device');
 const SensorData = require('../models/data'); 
 const mongoose = require('mongoose');
+const { verifyToken } = require('../utils/token'); 
 
 
-function generateTopics(clientId) {
-  return {
-    sensor: `tele/${clientId}/SENSOR`,
-    status: `tele/${clientId}/STATUS`,
-    statusCommand: `cmnd/${clientId}/STATUS`,
-  };
-}
 
-/**
-
- * @param {string} clientId
- * @param {string} entity
- * @param {string} category 
- * @param {string} type
- * @param {object} metadata
- * @returns {Promise<{success: boolean, message?: string, device?: object}>}
- */
-async function registerDevice(clientId, entity ,category, type, metadata = {},userId) {
+async function registerDevice(clientId, entity, type, accessToken) {
   try {
-    const existingDevice = await Device.findOne({ clientId });
+    const { userId, error } = verifyToken(accessToken);
+    if (error) return { success: false, message: error };
+
+    const existingDevice = await Device.findOne({ clientId, entity , owner:userId});
     if (existingDevice) {
       return { success: false, message: 'Device already registered' };
     }
 
-    const topics = generateTopics(clientId);
-
     const device = new Device({
       clientId,
       entity,
-      category,
       type,
-      topics,
-      metadata,
-      userId,
       owner: new mongoose.Types.ObjectId(userId),
     });
 
@@ -44,97 +26,59 @@ async function registerDevice(clientId, entity ,category, type, metadata = {},us
 
     return {
       success: true,
-      message: `Device "${clientId}" registered successfully.`,
+      message: `Device "${clientId}, ${entity}" registered successfully.`,
       device,
-    };
-  } catch (error) {
-    return { success: false, message: 'Error registering device: ' + error.message };
-  }
-}
-
-/**
-
- * @returns {Promise<Array>}
- */
-async function getAllDevices() {
-  return await Device.find({});
-}
-
-/**
-
- * @param {string} clientId
- * @returns {Promise<Object|null>}
- */
-async function getDevice(clientId) {
-  return await Device.findOne({ clientId });
-}
-
-/**
-
- * @param {string} category
- * @returns {Promise<Array>}
- */
-async function getDevicesByCategory(category) {
-  return await Device.find({ category });
-}
-
-
-
-/**
- * @param {string} clientId
- * @param {object} updateFields 
- * @returns {Promise<{success: boolean, message: string, device?: object}>}
- */
-async function updateDevice(clientId, updateFields) {
-  try {
-    const device = await Device.findOne({ clientId });
-    if (!device) {
-      return { success: false, message: `Device "${clientId}" not found` };
-    }
-
-    if (updateFields.type !== undefined) device.type = updateFields.type;
-    if (updateFields.metadata !== undefined) device.metadata = updateFields.metadata;
-
-    if (updateFields.topics !== undefined) {
-      if (!device.topics) device.topics = new Map();
-
-      for (const [key, value] of Object.entries(updateFields.topics)) {
-        device.topics.set(key, value);
-      }
-    }
-
-    await device.save();
-
-    return {
-      success: true,
-      message: `Device "${clientId}" updated successfully.`,
-      device
     };
   } catch (error) {
     return {
       success: false,
-      message: 'Error updating device: ' + error.message
+      message: 'Error registering device: ' + error.message,
     };
   }
 }
 
-/**
- * @param {string} clientId
- * @returns {Promise<{success: boolean, message: string}>}
- */
-async function unregisterDevice(clientId) {
-  const deleted = await Device.deleteOne({ clientId });
+
+/////////////////////////////////////////////////////////////////////////
+
+
+
+async function getDevices(accessToken) {
+  const { userId, error } = verifyToken(accessToken);
+  if (error) return { success: false, message: error };
+
+  const query = { owner: userId };
+
+  if (filter.clientId) query.clientId = filter.clientId;
+  if (filter.entity) query.entity = filter.entity;
+
+  const devices = await Device.find(query);
+  return { success: true, devices };
+}
+
+////////////////////////////////////////////////////////////////////////////
+
+async function unregisterDevice(accessToken, clientId, entity) {
+  const { userId, error } = verifyToken(accessToken);
+  if (error) return { success: false, message: error };
+
+  const query = { owner: userId };
+  if (clientId) query.clientId = clientId;
+  if (entity) query.entity = entity;
+
+  const deleted = await Device.deleteOne(query);
+
   if (deleted.deletedCount === 0) {
-    return { success: false, message: `Device "${clientId}" not found` };
+    return { success: false, message: 'Device not found or already deleted' };
   }
+
   return { success: true, message: `Device "${clientId}" unregistered successfully.` };
 }
 
+////////////////////////////////////////
+
+
 module.exports = {
   registerDevice,
-  getAllDevices,
-  getDevice,
-  getDevicesByCategory,
-  updateDevice,
+  getDevices,
   unregisterDevice,
 };
