@@ -1,6 +1,5 @@
 const mqttService = require('../services/mqttServices');
 
-
 exports.getConnectedDevices = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
@@ -43,34 +42,32 @@ exports.getLatestData = async (req, res) => {
   }
 };
 
-
-
 /////////////////////////////////////////////////
 
 exports.sendCommand = async (req, res) => {
   /*
     #swagger.tags = ['MQTT']
-    #swagger.summary = 'Get Latest Temperature Data'
+    #swagger.summary = 'Send command to toggle device power'
     #swagger.parameters['body'] = {
       in: 'body',
-      required: false,
+      required: true,
       schema: {
         clientId: " ",
         entity: " "
       }
     }
   */
-  const { clientId ,entity} = req.body;
+  const { clientId, entity } = req.body;
 
   if (!clientId || typeof clientId !== 'string') {
     return res.status(400).json({ success: false, message: 'Missing or invalid clientId' });
   }
-  if (!clientId && !entity) {
-      return res.status(400).json({ success: false, message: 'Missing field' });
+  if (!entity) {
+    return res.status(400).json({ success: false, message: 'Missing entity' });
   }
 
   try {
-    const result = await mqttService.sendCommand(clientId , entity);
+    const result = await mqttService.sendCommand(clientId, entity);
     res.status(result.success ? 200 : 503).json(result);
   } catch (error) {
     res.status(503).json({ success: false, message: error.message });
@@ -91,8 +88,8 @@ exports.setAutomation = async (req, res) => {
     }
     #swagger.parameters['body'] = {
       in: 'body',
-      required: false,
-       schema: {
+      required: true,
+      schema: {
         clientId: " ",
         entity: " ",
         onTime: " ",
@@ -103,9 +100,9 @@ exports.setAutomation = async (req, res) => {
   */
 
   const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
-    }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
+  }
   const accessToken = authHeader.split(' ')[1];
 
   const {
@@ -116,7 +113,6 @@ exports.setAutomation = async (req, res) => {
     timezone = 'Asia/Ulaanbaatar',
   } = req.body;
 
-  
   if (!accessToken || !clientId || !entity || !onTime || !offTime) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
@@ -136,14 +132,14 @@ exports.updateAutomationRuleById = async (req, res) => {
     #swagger.tags = ['Update automation']
     #swagger.parameters['body'] = {
       in: 'body',
-      required: false,
-      schema : {
-      ruleId : " ",
-      onTime: " ", 
-      offTime: " ", 
-      timezone: " " 
+      required: true,
+      schema: {
+        ruleId: " ",
+        onTime: " ",
+        offTime: " ",
+        timezone: " "
+      }
     }
-  }
   */
   const { ruleId, onTime, offTime, timezone } = req.body;
 
@@ -176,16 +172,12 @@ exports.updateAutomationRuleById = async (req, res) => {
 exports.getAutomationRulesByClientId = async (req, res) => {
   /*
     #swagger.tags = ['Get automation']
-    #swagger.parameters['body'] = {
-      in: 'body',
-      required: false,
-      schema : {
+    #swagger.parameters['query'] = {
       clientId: " ",
       entity: " "
-      },
-  }
+    }
   */
-  const { clientId, entity } = req.body;
+  const { clientId, entity } = req.query;
 
   if (!clientId) {
     return res.status(400).json({ success: false, message: 'Missing clientId' });
@@ -206,12 +198,13 @@ exports.deleteAutomationRuleById = async (req, res) => {
     #swagger.tags = ['Delete automation']
     #swagger.parameters['body'] = {
       in: 'body',
-      required: false,
+      required: true,
       schema: {
-      ruleId: " "
+        ruleId: " "
       }
+    }
   */
-  const ruleId  = req.body;
+  const { ruleId } = req.body;
 
   if (!ruleId) {
     return res.status(400).json({ success: false, message: 'Missing ruleId' });
@@ -229,7 +222,6 @@ exports.deleteAutomationRuleById = async (req, res) => {
   }
 };
 
-
 exports.getPowerLogs = async (req, res) => {
   /*
     #swagger.tags = ['Power Logs']
@@ -240,11 +232,11 @@ exports.getPowerLogs = async (req, res) => {
       type: 'string'
     }
   */
-    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
-    }
-   const accessToken = authHeader.split(' ')[1];
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
+  }
+  const accessToken = authHeader.split(' ')[1];
 
   if (!accessToken) {
     return res.status(400).json({ success: false, message: 'Missing accessToken' });
