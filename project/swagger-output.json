@@ -438,13 +438,13 @@
         "tags": [
           "MQTT"
         ],
-        "summary": "Get Latest Temperature Data",
+        "summary": "Send command to toggle device power",
         "description": "",
         "parameters": [
           {
             "name": "body",
             "in": "body",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
@@ -491,7 +491,7 @@
           {
             "name": "body",
             "in": "body",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
@@ -553,7 +553,7 @@
           {
             "name": "body",
             "in": "body",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "object",
               "properties": {
@@ -604,22 +604,21 @@
         "description": "",
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": false,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "clientId": {
-                  "type": "string",
-                  "example": " "
-                },
-                "entity": {
-                  "type": "string",
-                  "example": " "
-                }
-              }
-            }
+            "name": "query",
+            "clientId": " ",
+            "entity": " ",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "type": "string"
           }
         ],
         "responses": {
@@ -641,6 +640,22 @@
           "Delete automation"
         ],
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "ruleId": {
+                  "type": "string",
+                  "example": " "
+                }
+              }
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -665,18 +680,16 @@
         "description": "",
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": false,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "accessToken": {
-                  "type": "string",
-                  "example": " "
-                }
-              }
-            }
+            "name": "Authorization",
+            "in": "header",
+            "description": "Bearer access token",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
           }
         ],
         "responses": {
@@ -685,6 +698,9 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "503": {
             "description": "Service Unavailable"

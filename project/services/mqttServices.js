@@ -16,7 +16,8 @@ const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
 });
 
 const subscribedDevices = new Set();
-const connectedClients = new Map(); 
+const connectedClients = new Map();
+const powerDebounce = new Map(); // For debouncing power state changes
 
 function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   axios.post(`http://192.168.1.168:3001/${endpoint}`, payload, {
@@ -40,11 +41,38 @@ async function logDeviceStatus(clientId, power, status, message = '') {
   }
 }
 
-async function logPowerStatus({ clientId, entity, power }) {
+async function logPowerStatus({ clientId, power }) {
   try {
-    await new PowerLog({ clientId, entity, power }).save();
+    // Debounce check - skip if same state within 5 seconds
+    const debounceKey = `${clientId}_${power}`;
+    const lastDebounceTime = powerDebounce.get(debounceKey) || 0;
+    const now = Date.now();
+    
+    if (now - lastDebounceTime < 5000) {
+      console.log(`⚠️ Debouncing power log for ${clientId}, ${power}`);
+      return;
+    }
+    powerDebounce.set(debounceKey, now);
+
+    // Check for duplicate in database
+    const lastLog = await PowerLog.findOne({ clientId }).sort({ timestamp: -1 });
+    if (lastLog && lastLog.power === power) {
+      console.log(`⚠️ Duplicate power log detected for ${clientId}, ${power}`);
+      return;
+    }
+
+    console.log(`📦 Saving PowerLog: ${clientId}, ${power}`);
+    await new PowerLog({ clientId, power, timestamp: new Date() }).save();
   } catch (err) {
-    console.error(`❌ Failed to save power log for ${clientId}:`, err.message);
+    console.error(`❌ Failed to save power log for ${clientId}, power=${power}:`, err);
+  }
+}
+
+async function logAutomationExecution({ ruleId, action }) {
+  try {
+    await new AutomationLog({ ruleId, action }).save();
+  } catch (err) {
+    console.error(`❌ Failed to log automation execution:`, err.message);
   }
 }
 
@@ -68,47 +96,46 @@ client.on('connect', () => {
   client.subscribe('tele/+/LWT');
   client.subscribe('tele/+/SENSOR');
   client.subscribe('stat/+/RESULT');
+  client.subscribe('stat/+/POWER');
 });
 
 client.on('message', async (topic, message, packet) => {
   const msgStr = message.toString();
-  const payload = JSON.parseSafe(msgStr);
+  let payload;
+  try {
+    payload = JSON.parse(msgStr);
+  } catch {
+    payload = {};
+  }
+
   const stateMatch = topic.match(/^tele\/(.+?)\/STATE$/);
   const lwtMatch = topic.match(/^tele\/(.+?)\/LWT$/);
   const resultMatch = topic.match(/^stat\/(.+?)\/RESULT$/);
+  const powerMatch = topic.match(/^stat\/(.+?)\/POWER$/);
   const sensorMatch = topic.match(/^tele\/(.+?)\/SENSOR$/);
 
   let clientId = null;
   let type = null;
 
-  // Extract clientId from topic
   if (stateMatch) clientId = stateMatch[1];
   else if (lwtMatch) clientId = lwtMatch[1];
   else if (resultMatch) clientId = resultMatch[1];
+  else if (powerMatch) clientId = powerMatch[1];
   else if (sensorMatch) clientId = sensorMatch[1];
   if (!clientId) return;
 
-  // Try to determine type from clientId prefix
+  // Device type detection
   if (clientId) {
     if (clientId.startsWith('VIOT_')) type = 'th';
     else if (clientId.startsWith('tasmota_')) type = 'bridge';
     else if (clientId.startsWith('sonoff_')) type = 'sonoff';
   }
 
-  // Fallback to username if still not determined
   if (!type) {
     const username = packet?.username || null;
-    console.log("Username from packet:", username);
-
     if (username && username.includes('_')) {
       const parts = username.split('_');
-      console.log("Username split parts:", parts);
-
-      // Usually, type is the second part, like "th" or "bridge"
       type = parts[1]?.toLowerCase() || null;
-      console.log("Extracted type from username:", type);
-    } else {
-      console.log("Username does not contain underscore or is null");
     }
   }
 
@@ -129,12 +156,41 @@ client.on('message', async (topic, message, packet) => {
     }
 
     if (sensorMatch) {
-      console.log(`Received SENSOR for clientId=${clientId}:`, payload);
       for (const [entity, data] of Object.entries(payload)) {
         if (entity !== 'Time' && typeof data === 'object') {
           deviceInfo.entities.add(entity);
-          console.log(`Added entity ${entity} for clientId ${clientId}`);
           await new SensorData({ clientId, entity, data, timestamp: new Date() }).save();
+        }
+      }
+    }
+
+    // Handle power state changes with debounce and duplicate prevention
+    if (powerMatch) {
+      // Direct power state topic (simple ON/OFF)
+      const power = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
+      if (power) {
+        await logPowerStatus({ clientId, power });
+        await logDeviceStatus(clientId, power, 'connected');
+      }
+    } else if (resultMatch) {
+      // Result topic (may contain JSON with power state)
+      try {
+        const parsed = JSON.parse(msgStr);
+        const power = parsed?.POWER || parsed?.POWER1 || null;
+        if (power === 'ON' || power === 'OFF') {
+          await logPowerStatus({ clientId, power });
+          await logDeviceStatus(clientId, power, 'connected');
+        }
+      } catch (e) {
+        // Not a valid JSON power message
+      }
+    } else if (stateMatch) {
+      // State topic may contain power information
+      if (payload.POWER || payload.POWER1) {
+        const power = payload.POWER || payload.POWER1;
+        if (power === 'ON' || power === 'OFF') {
+          await logPowerStatus({ clientId, power });
+          await logDeviceStatus(clientId, power, 'connected');
         }
       }
     }
@@ -147,16 +203,11 @@ async function getConnectedDevices() {
   const result = Array.from(connectedClients.entries()).map(([clientId, info]) => ({
     clientId,
     type: info.type || null,
-    entity: [...info.entities][0] || null,
+    entities: Array.from(info.entities || [])
   }));
   return { success: true, count: result.length, devices: result };
 }
 
-JSON.parseSafe = function (str) {
-  try { return JSON.parse(str); } catch { return {}; }
-};
-
-////////////////////////////////////////////////////////////////////////////////
 async function getLatestSensorData(clientId, entity) {
   try {
     const sensor = await SensorData.findOne({ clientId, entity }).sort({ timestamp: -1 });
@@ -171,49 +222,55 @@ async function getLatestSensorData(clientId, entity) {
 async function sendCommand(clientId, entity) {
   try {
     const device = await Device.findOne({ clientId, entity });
-    if (!device) {
-      return { success: false, message: 'No device available' };
-    }
+    if (!device) return { success: false, message: 'No device available' };
 
     const inputTopic = `cmnd/${clientId}/POWER`;
     const message = 'TOGGLE';
-    const responseTopic = `stat/${clientId}/RESULT`;
+    const responseTopic1 = `stat/${clientId}/RESULT`;
+    const responseTopic2 = `stat/${clientId}/POWER`;
 
     return await new Promise((resolve, reject) => {
       let timeout;
 
-      const handleMessage = (topic, payload) => {
-        if (topic === responseTopic) {
+      const handleMessage = async (topic, payload) => {
+        if (topic === responseTopic1 || topic === responseTopic2) {
           clearTimeout(timeout);
           client.removeListener('message', handleMessage);
-          client.unsubscribe(responseTopic, () => { });
+          client.unsubscribe(responseTopic1);
+          client.unsubscribe(responseTopic2);
+
+          const str = payload.toString();
+          let powerState = null;
+
           try {
-            const data = JSON.parse(payload.toString());
-            resolve({ success: true, message: 'Response received', data });
-          } catch (err) {
-            resolve({ success: true, message: 'Response received', raw: payload.toString() });
+            const parsed = JSON.parse(str);
+            powerState = parsed?.POWER || parsed?.POWER1 || null;
+          } catch {
+            powerState = str === 'ON' || str === 'OFF' ? str : null;
           }
+
+          return resolve({ success: true, message: 'Response received', payload: str });
         }
       };
 
       client.on('message', handleMessage);
 
-      client.subscribe(responseTopic, (err) => {
+      client.subscribe([responseTopic1, responseTopic2], (err) => {
         if (err) {
           client.removeListener('message', handleMessage);
-          return reject({ success: false, message: 'Failed to subscribe to response topic' });
+          return reject({ success: false, message: 'Failed to subscribe to response topics' });
         }
 
         client.publish(inputTopic, message, {}, (err) => {
           if (err) {
             client.removeListener('message', handleMessage);
-            client.unsubscribe(responseTopic, () => { });
+            client.unsubscribe([responseTopic1, responseTopic2]);
             return reject({ success: false, message: 'Failed to send command', error: err.message });
           }
 
           timeout = setTimeout(() => {
             client.removeListener('message', handleMessage);
-            client.unsubscribe(responseTopic, () => { });
+            client.unsubscribe([responseTopic1, responseTopic2]);
             reject({ success: false, message: 'Device did not respond in time' });
           }, 5000);
         });
@@ -230,9 +287,7 @@ async function setAutomationRule(accessToken, clientId, entity, onTime, offTime,
 
   try {
     const device = await Device.findOne({ clientId, entity, owner: userId });
-    if (!device) {
-      return { success: false, message: 'Device not found or access denied' };
-    }
+    if (!device) return { success: false, message: 'Device not found or access denied' };
 
     const rule = await Automation.create({
       clientId,
@@ -241,13 +296,12 @@ async function setAutomationRule(accessToken, clientId, entity, onTime, offTime,
       onTime,
       offTime,
       timezone,
+      owner: userId
     });
 
     return { success: true, message: 'Rule created', rule };
   } catch (err) {
-    if (err.code === 11000) {
-      return { success: false, message: 'Duplicate time rule' };
-    }
+    if (err.code === 11000) return { success: false, message: 'Duplicate time rule' };
     return { success: false, message: err.message };
   }
 }
@@ -281,7 +335,7 @@ async function getPowerLogs(accessToken) {
   const devices = await Device.find({ owner: userId });
   const clientIds = devices.map((d) => d.clientId);
   if (clientIds.length === 0) return { success: true, count: 0, logs: [] };
-  const logs = await PowerLog.find({ clientId: { $in: clientIds } }).sort({ _id: -1 });
+  const logs = await PowerLog.find({ clientId: { $in: clientIds } }).sort({ _id: -1 }).limit(100);
   return { success: true, count: logs.length, logs };
 }
 
@@ -293,10 +347,10 @@ cron.schedule('* * * * *', async () => {
     const time = now.format('HH:mm');
     if (time === rule.onTime) {
       await sendCommand(rule.clientId, rule.entity);
-      await logAutomationExecution({ clientId: rule.clientId, ruleId: rule._id, topic: rule.topic, action: 'ON' });
+      await logAutomationExecution({ ruleId: rule._id, action: 'ON' });
     } else if (time === rule.offTime) {
       await sendCommand(rule.clientId, rule.entity);
-      await logAutomationExecution({ clientId: rule.clientId, ruleId: rule._id, topic: rule.topic, action: 'OFF' });
+      await logAutomationExecution({ ruleId: rule._id, action: 'OFF' });
     }
   }
 });
