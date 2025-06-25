@@ -61,7 +61,7 @@ async function check() {
     const count = await SensorData.countDocuments();
     console.log(`📦 Total documents in sensordatas: ${count}`);
 
-    const latest = await SensorData.findOne().sort({ createdAt: -1 }).lean();
+    const latest = await SensorData.findOne().sort({ _id: -1 }).lean();
     console.log('🧾 Latest entry:', latest);
   } catch (err) {
     console.error('❌ Failed to check sensor data:', err);

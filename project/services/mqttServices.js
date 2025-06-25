@@ -17,10 +17,11 @@ const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
 
 const subscribedDevices = new Set();
 const connectedClients = new Map();
-const powerDebounce = new Map();
+const recentPowerLogs = new Map();
 const pendingPowerUpdates = new Map();
+const recentAutomationLogs = new Map();
 
-let powerLogCallCount = 0; // <-- Counter added
+let powerLogCallCount = 0;
 
 async function ensureIndexes() {
   try {
@@ -30,7 +31,6 @@ async function ensureIndexes() {
     console.error('Error ensuring indexes:', err);
   }
 }
-
 ensureIndexes();
 
 function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
@@ -43,20 +43,21 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   });
 }
 
-async function logDeviceStatus(clientId, power, status, message = '') {
+// Include entity when saving status
+async function logDeviceStatus(clientId, entity, power, status, message = '') {
   try {
+    const filter = entity ? { clientId, entity } : { clientId };
+    const update = { power, status, message, date: new Date() };
+    if (entity) update.entity = entity;
     return await DeviceStatusLog.updateOne(
-      { clientId },
-      { $set: { power, status, message, date: new Date() } },
+      filter,
+      { $set: update },
       { upsert: true }
     );
   } catch (err) {
-    console.error(`❌ Failed to update status for ${clientId}:`, err.message);
+    console.error(`❌ Failed to update status for ${clientId}${entity ? ':' + entity : ''}:`, err.message);
   }
 }
-
-
-const recentPowerLogs = new Map(); 
 
 async function logPowerStatus({ clientId, power }) {
   powerLogCallCount++;
@@ -82,10 +83,20 @@ async function logPowerStatus({ clientId, power }) {
   }
 }
 
-
 async function logAutomationExecution({ ruleId, action }) {
+  const key = `${ruleId}_${action}`;
+  const now = Date.now();
+  const last = recentAutomationLogs.get(key);
+
+  if (last && now - last < 5000) {
+    console.log(`🛑 Skipping duplicate AutomationLog for ${key}`);
+    return;
+  }
+
   try {
-    await new AutomationLog({ ruleId, action }).save();
+    await AutomationLog.create({ ruleId, action, timestamp: new Date() });
+    recentAutomationLogs.set(key, now);
+    console.log(`✅ AutomationLog saved: ${key}`);
   } catch (err) {
     console.error(`❌ Failed to log automation execution:`, err.message);
   }
@@ -107,11 +118,8 @@ client.on('connect', () => {
   sendHttpEvent('connection');
   console.log('MQTT connected');
 
-  client.subscribe('tele/+/STATE');
-  client.subscribe('tele/+/LWT');
-  client.subscribe('tele/+/SENSOR');
-  client.subscribe('stat/+/RESULT');
-  client.subscribe('stat/+/POWER');
+  ['tele/+/STATE', 'tele/+/LWT', 'tele/+/SENSOR', 'stat/+/RESULT', 'stat/+/POWER']
+    .forEach(subscribeToTopic);
 });
 
 client.on('message', async (topic, message, packet) => {
@@ -125,61 +133,61 @@ client.on('message', async (topic, message, packet) => {
   const powerMatch = topic.match(/^stat\/(.+?)\/POWER$/);
   const sensorMatch = topic.match(/^tele\/(.+?)\/SENSOR$/);
 
-  let clientId = stateMatch?.[1] || lwtMatch?.[1] || resultMatch?.[1] || powerMatch?.[1] || sensorMatch?.[1];
+  const clientId = stateMatch?.[1] || lwtMatch?.[1] || resultMatch?.[1] || powerMatch?.[1] || sensorMatch?.[1];
   if (!clientId) return;
 
-  let type = null;
+  let type;
   if (clientId.startsWith('VIOT_')) type = 'th';
   else if (clientId.startsWith('tasmota_')) type = 'bridge';
   else if (clientId.startsWith('sonoff_')) type = 'sonoff';
   else if (packet?.username?.includes('_')) {
-    const parts = packet.username.split('_');
-    type = parts[1]?.toLowerCase();
+    type = packet.username.split('_')[1]?.toLowerCase();
   }
 
-  try {
-    if (!connectedClients.has(clientId)) {
-      connectedClients.set(clientId, { type: type || null, entities: new Set() });
-    } else if (!connectedClients.get(clientId).type && type) {
-      connectedClients.get(clientId).type = type;
+  if (!connectedClients.has(clientId)) {
+    connectedClients.set(clientId, { type: type || null, entities: new Set() });
+  } else if (!connectedClients.get(clientId).type && type) {
+    connectedClients.get(clientId).type = type;
+  }
+
+  const deviceInfo = connectedClients.get(clientId);
+
+
+  // handle SENSOR
+  if (sensorMatch) {
+    for (const [entity, data] of Object.entries(payload)) {
+      if (entity === 'Time' || typeof data !== 'object') continue;
+      deviceInfo.entities.add(entity);
+      console.log('Data', data);
+      await new SensorData({ clientId, entity, data, timestamp: new Date() }).save();
     }
+    return;
+  }
 
-    const deviceInfo = connectedClients.get(clientId);
+  // Determine entity for status logs
+  const entity = deviceInfo.entities.values().next().value || null;
 
-    if (lwtMatch) {
-      const status = msgStr.toLowerCase() === 'online' ? 'connected' : 'disconnected';
-      await logDeviceStatus(clientId, 'unknown', status, `LWT: ${msgStr}`);
-      if (status !== 'connected') connectedClients.delete(clientId);
-    }
-
-    if (sensorMatch) {
-      for (const [entity, data] of Object.entries(payload)) {
-        if (entity !== 'Time' && typeof data === 'object') {
-          deviceInfo.entities.add(entity);
-          await new SensorData({ clientId, entity, data, timestamp: new Date() }).save();
-        }
+  // handle POWER topic
+  if (powerMatch) {
+    const powerState = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
+    if (powerState && !pendingPowerUpdates.has(clientId)) {
+      pendingPowerUpdates.set(clientId, true);
+      try {
+        await logPowerStatus({ clientId, power: powerState });
+        await logDeviceStatus(clientId, entity, powerState, 'connected');
+      } finally {
+        setTimeout(() => pendingPowerUpdates.delete(clientId), 100);
       }
     }
+    return;
+  }
 
-    if (powerMatch) {
-      const powerState = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
-      if (powerState && !pendingPowerUpdates.has(clientId)) {
-        pendingPowerUpdates.set(clientId, true);
-        try {
-          await logPowerStatus({ clientId, power: powerState });
-          await logDeviceStatus(clientId, powerState, 'connected');
-        } finally {
-          setTimeout(() => pendingPowerUpdates.delete(clientId), 100);
-        }
-      }
-    } else if (resultMatch || stateMatch) {
-      const powerState = payload?.POWER || payload?.POWER1 || null;
-      if (powerState === 'ON' || powerState === 'OFF') {
-        await logDeviceStatus(clientId, powerState, 'connected');
-      }
+  // handle RESULT or STATE
+  if (resultMatch || stateMatch) {
+    const powerState = payload?.POWER || payload?.POWER1 || null;
+    if (powerState === 'ON' || powerState === 'OFF') {
+      await logDeviceStatus(clientId, entity, powerState, 'connected');
     }
-  } catch (err) {
-    console.error('❗ MQTT handler error:', err.message);
   }
 });
 
@@ -192,7 +200,7 @@ async function getConnectedDevices() {
   return { success: true, count: result.length, devices: result };
 }
 
-// Other exported functions unchanged
+
 
 async function getLatestSensorData(clientId, entity) {
   try {
@@ -325,19 +333,31 @@ async function getPowerLogs(accessToken) {
   return { success: true, count: logs.length, logs };
 }
 
+// Run automation rules every minute
 cron.schedule('* * * * *', async () => {
-  const nowUtc = moment.utc();
-  const automations = await Automation.find({});
-  for (const rule of automations) {
-    const now = nowUtc.clone().tz(rule.timezone);
-    const time = now.format('HH:mm');
-    if (time === rule.onTime) {
-      await sendCommand(rule.clientId, rule.entity);
-      await logAutomationExecution({ ruleId: rule._id, action: 'ON' });
-    } else if (time === rule.offTime) {
-      await sendCommand(rule.clientId, rule.entity);
-      await logAutomationExecution({ ruleId: rule._id, action: 'OFF' });
+  try {
+    const nowUtc = moment.utc();
+    const automations = await Automation.find({});
+    const executionCache = new Set(); // Track executed rules this minute
+
+    for (const rule of automations) {
+      const cacheKey = `${rule._id}_${nowUtc.format('HH:mm')}`;
+      if (executionCache.has(cacheKey)) continue;
+      
+      const now = nowUtc.clone().tz(rule.timezone);
+      const time = now.format('HH:mm');
+
+      if (time === rule.onTime || time === rule.offTime) {
+        await sendCommand(rule.clientId, rule.entity);
+        await logAutomationExecution({ 
+          ruleId: rule._id, 
+          action: time === rule.onTime ? 'ON' : 'OFF' 
+        });
+        executionCache.add(cacheKey);
+      }
     }
+  } catch (err) {
+    console.error('❌ Error running automation cron:', err.message);
   }
 });
 
