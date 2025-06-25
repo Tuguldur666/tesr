@@ -17,7 +17,21 @@ const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
 
 const subscribedDevices = new Set();
 const connectedClients = new Map();
-const powerDebounce = new Map(); // For debouncing power state changes
+const powerDebounce = new Map();
+const pendingPowerUpdates = new Map();
+
+let powerLogCallCount = 0; // <-- Counter added
+
+async function ensureIndexes() {
+  try {
+    await PowerLog.collection.createIndex({ clientId: 1, power: 1, timestamp: -1 });
+    console.log('PowerLog indexes ensured');
+  } catch (err) {
+    console.error('Error ensuring indexes:', err);
+  }
+}
+
+ensureIndexes();
 
 function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   axios.post(`http://192.168.1.168:3001/${endpoint}`, payload, {
@@ -31,42 +45,43 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
 
 async function logDeviceStatus(clientId, power, status, message = '') {
   try {
-    return await DeviceStatusLog.findOneAndUpdate(
+    return await DeviceStatusLog.updateOne(
       { clientId },
-      { power, status, message, date: new Date() },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { $set: { power, status, message, date: new Date() } },
+      { upsert: true }
     );
   } catch (err) {
     console.error(`❌ Failed to update status for ${clientId}:`, err.message);
   }
 }
 
+
+const recentPowerLogs = new Map(); 
+
 async function logPowerStatus({ clientId, power }) {
+  powerLogCallCount++;
+  console.log(`logPowerStatus called ${powerLogCallCount} times for ${clientId} with power=${power}`);
+
+  if (!['ON', 'OFF'].includes(power)) return;
+
+  const now = Date.now();
+  const key = clientId;
+  const last = recentPowerLogs.get(key);
+
+  if (last && last.power === power && now - last.ts < 1000) {
+    console.log(`🛑 Skipping duplicate (debounced) power log for ${clientId}, power=${power}`);
+    return;
+  }
+
   try {
-    // Debounce check - skip if same state within 5 seconds
-    const debounceKey = `${clientId}_${power}`;
-    const lastDebounceTime = powerDebounce.get(debounceKey) || 0;
-    const now = Date.now();
-    
-    if (now - lastDebounceTime < 5000) {
-      console.log(`⚠️ Debouncing power log for ${clientId}, ${power}`);
-      return;
-    }
-    powerDebounce.set(debounceKey, now);
-
-    // Check for duplicate in database
-    const lastLog = await PowerLog.findOne({ clientId }).sort({ timestamp: -1 });
-    if (lastLog && lastLog.power === power) {
-      console.log(`⚠️ Duplicate power log detected for ${clientId}, ${power}`);
-      return;
-    }
-
-    console.log(`📦 Saving PowerLog: ${clientId}, ${power}`);
-    await new PowerLog({ clientId, power, timestamp: new Date() }).save();
+    await PowerLog.create({ clientId, power, timestamp: new Date() });
+    recentPowerLogs.set(key, { power, ts: now });
+    console.log(`✅ PowerLog saved: ${clientId}, ${power}`);
   } catch (err) {
-    console.error(`❌ Failed to save power log for ${clientId}, power=${power}:`, err);
+    console.error(`Power log error for ${clientId}:`, err);
   }
 }
+
 
 async function logAutomationExecution({ ruleId, action }) {
   try {
@@ -102,11 +117,7 @@ client.on('connect', () => {
 client.on('message', async (topic, message, packet) => {
   const msgStr = message.toString();
   let payload;
-  try {
-    payload = JSON.parse(msgStr);
-  } catch {
-    payload = {};
-  }
+  try { payload = JSON.parse(msgStr); } catch { payload = {}; }
 
   const stateMatch = topic.match(/^tele\/(.+?)\/STATE$/);
   const lwtMatch = topic.match(/^tele\/(.+?)\/LWT$/);
@@ -114,37 +125,23 @@ client.on('message', async (topic, message, packet) => {
   const powerMatch = topic.match(/^stat\/(.+?)\/POWER$/);
   const sensorMatch = topic.match(/^tele\/(.+?)\/SENSOR$/);
 
-  let clientId = null;
-  let type = null;
-
-  if (stateMatch) clientId = stateMatch[1];
-  else if (lwtMatch) clientId = lwtMatch[1];
-  else if (resultMatch) clientId = resultMatch[1];
-  else if (powerMatch) clientId = powerMatch[1];
-  else if (sensorMatch) clientId = sensorMatch[1];
+  let clientId = stateMatch?.[1] || lwtMatch?.[1] || resultMatch?.[1] || powerMatch?.[1] || sensorMatch?.[1];
   if (!clientId) return;
 
-  // Device type detection
-  if (clientId) {
-    if (clientId.startsWith('VIOT_')) type = 'th';
-    else if (clientId.startsWith('tasmota_')) type = 'bridge';
-    else if (clientId.startsWith('sonoff_')) type = 'sonoff';
-  }
-
-  if (!type) {
-    const username = packet?.username || null;
-    if (username && username.includes('_')) {
-      const parts = username.split('_');
-      type = parts[1]?.toLowerCase() || null;
-    }
+  let type = null;
+  if (clientId.startsWith('VIOT_')) type = 'th';
+  else if (clientId.startsWith('tasmota_')) type = 'bridge';
+  else if (clientId.startsWith('sonoff_')) type = 'sonoff';
+  else if (packet?.username?.includes('_')) {
+    const parts = packet.username.split('_');
+    type = parts[1]?.toLowerCase();
   }
 
   try {
     if (!connectedClients.has(clientId)) {
       connectedClients.set(clientId, { type: type || null, entities: new Set() });
-    } else {
-      const existing = connectedClients.get(clientId);
-      if (!existing.type && type) existing.type = type;
+    } else if (!connectedClients.get(clientId).type && type) {
+      connectedClients.get(clientId).type = type;
     }
 
     const deviceInfo = connectedClients.get(clientId);
@@ -164,34 +161,21 @@ client.on('message', async (topic, message, packet) => {
       }
     }
 
-    // Handle power state changes with debounce and duplicate prevention
     if (powerMatch) {
-      // Direct power state topic (simple ON/OFF)
-      const power = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
-      if (power) {
-        await logPowerStatus({ clientId, power });
-        await logDeviceStatus(clientId, power, 'connected');
-      }
-    } else if (resultMatch) {
-      // Result topic (may contain JSON with power state)
-      try {
-        const parsed = JSON.parse(msgStr);
-        const power = parsed?.POWER || parsed?.POWER1 || null;
-        if (power === 'ON' || power === 'OFF') {
-          await logPowerStatus({ clientId, power });
-          await logDeviceStatus(clientId, power, 'connected');
+      const powerState = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
+      if (powerState && !pendingPowerUpdates.has(clientId)) {
+        pendingPowerUpdates.set(clientId, true);
+        try {
+          await logPowerStatus({ clientId, power: powerState });
+          await logDeviceStatus(clientId, powerState, 'connected');
+        } finally {
+          setTimeout(() => pendingPowerUpdates.delete(clientId), 100);
         }
-      } catch (e) {
-        // Not a valid JSON power message
       }
-    } else if (stateMatch) {
-      // State topic may contain power information
-      if (payload.POWER || payload.POWER1) {
-        const power = payload.POWER || payload.POWER1;
-        if (power === 'ON' || power === 'OFF') {
-          await logPowerStatus({ clientId, power });
-          await logDeviceStatus(clientId, power, 'connected');
-        }
+    } else if (resultMatch || stateMatch) {
+      const powerState = payload?.POWER || payload?.POWER1 || null;
+      if (powerState === 'ON' || powerState === 'OFF') {
+        await logDeviceStatus(clientId, powerState, 'connected');
       }
     }
   } catch (err) {
@@ -208,10 +192,12 @@ async function getConnectedDevices() {
   return { success: true, count: result.length, devices: result };
 }
 
+// Other exported functions unchanged
+
 async function getLatestSensorData(clientId, entity) {
   try {
-    const sensor = await SensorData.findOne({ clientId, entity }).sort({ timestamp: -1 });
-    const status = await DeviceStatusLog.findOne({ clientId, entity }).sort({ date: -1 });
+    const sensor = await SensorData.findOne({ clientId, entity }).sort({ _id: -1 });
+    const status = await DeviceStatusLog.findOne({ clientId, entity }).sort({ _id: -1 });
     if (!sensor && !status) return { success: false, message: 'No data available' };
     return { success: true, data: { sensor, status } };
   } catch (err) {
