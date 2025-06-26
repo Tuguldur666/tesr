@@ -187,14 +187,31 @@ client.on('message', async (topic, message, packet) => {
   }
 });
 
+
 async function getConnectedDevices() {
-  const result = Array.from(connectedClients.entries()).map(([clientId, info]) => ({
+  //  Get all connected devices
+  const connected = Array.from(connectedClients.entries()).map(([clientId, info]) => ({
     clientId,
     type: info.type || null,
-    entities: Array.from(info.entities || [])
+    entities: Array.from(info.entities || []),
   }));
+
+  // Get registered devices from DB by clientIds
+  const clientIds = connected.map(d => d.clientId);
+  const registeredDevices = await Device.find({ clientId: { $in: clientIds } }).select('clientId owner');
+  const registeredMap = new Map(registeredDevices.map(d => [d.clientId, d.owner])); // Map: clientId -> ownerId
+
+  // Each connected device with registration status
+  const result = connected.map(device => ({
+    ...device,
+    registered: registeredMap.has(device.clientId),
+    owner: registeredMap.get(device.clientId) || null,
+  }));
+
   return { success: true, count: result.length, devices: result };
 }
+/////////////////////////////////////////////////////////////////////////
+
 
 async function getLatestSensorData(clientId, entity) {
   try {
