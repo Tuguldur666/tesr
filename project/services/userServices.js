@@ -66,7 +66,7 @@ async function registerUser({ name, email, phoneNumber, password }) {
 
 
 
-// /////////////////////////////////////////////
+///////////////////////////////////////////////
 
 async function loginUser({ email, password }) {
   try {
@@ -158,8 +158,6 @@ async function getUserData(req) {
       return { success: false, status: 404, message: 'User not found' };
     }
 
-    const devices = await Device.find({ owner: user._id });
-
     return {
       success: true,
       status: 200,
@@ -167,7 +165,6 @@ async function getUserData(req) {
         id: user._id,
         name: user.name,
         email: user.email,
-        devices 
       }
     };
   } catch (err) {

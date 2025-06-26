@@ -45,10 +45,11 @@ async function registerDevice(clientId, entity, type, accessToken) {
 
 
 
-async function getDevices(accessToken) {
+async function getDevices(accessToken, req) {
   const { userId, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
+  const filter = req?.query || {}; 
   const query = { owner: userId };
 
   if (filter.clientId) query.clientId = filter.clientId;

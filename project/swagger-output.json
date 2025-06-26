@@ -787,7 +787,7 @@
         }
       }
     },
-    "/device/getUserId": {
+    "/device/getUserDevice": {
       "get": {
         "tags": [
           "Devices"
