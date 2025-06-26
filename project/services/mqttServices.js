@@ -1,9 +1,9 @@
+// mqttHandler.js
 const mqtt = require('mqtt');
 const axios = require('axios');
 const Device = require('../models/Device');
 const SensorData = require('../models/data');
 const Automation = require('../models/auto');
-const DeviceStatusLog = require('../models/status');
 const PowerLog = require('../models/powerlog');
 const AutomationLog = require('../models/autolog');
 const cron = require('node-cron');
@@ -43,43 +43,44 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   });
 }
 
-// Include entity when saving status
-async function logDeviceStatus(clientId, entity, power, status, message = '') {
+async function logDeviceStatus(clientId, entity, power, status) {
   try {
-    const filter = entity ? { clientId, entity } : { clientId };
-    const update = { power, status, message, date: new Date() };
-    if (entity) update.entity = entity;
-    return await DeviceStatusLog.updateOne(
-      filter,
-      { $set: update },
-      { upsert: true }
-    );
+    const filter = { clientId, entity };
+    const update = {
+      power,
+      status,
+      lastSeen: new Date(),
+    };
+    const result = await Device.updateOne(filter, { $set: update });
+    if (result.matchedCount === 0) {
+      console.warn(`⚠️ Device not found for clientId=${clientId}, entity=${entity}`);
+    }
   } catch (err) {
-    console.error(`❌ Failed to update status for ${clientId}${entity ? ':' + entity : ''}:`, err.message);
+    console.error(`❌ Failed to update device status for ${clientId}:${entity}:`, err.message);
   }
 }
 
-async function logPowerStatus({ clientId, power }) {
+async function logPowerStatus({ clientId, entity, power }) {
   powerLogCallCount++;
-  console.log(`logPowerStatus called ${powerLogCallCount} times for ${clientId} with power=${power}`);
+  console.log(`logPowerStatus called ${powerLogCallCount} times for ${clientId}:${entity} with power=${power}`);
 
   if (!['ON', 'OFF'].includes(power)) return;
 
   const now = Date.now();
-  const key = clientId;
+  const key = `${clientId}_${entity}`;
   const last = recentPowerLogs.get(key);
 
   if (last && last.power === power && now - last.ts < 1000) {
-    console.log(`🛑 Skipping duplicate (debounced) power log for ${clientId}, power=${power}`);
+    console.log(`🛑 Skipping duplicate power log for ${clientId}:${entity}, power=${power}`);
     return;
   }
 
   try {
-    await PowerLog.create({ clientId, power, timestamp: new Date() });
+    await PowerLog.create({ clientId, entity, power, timestamp: new Date() });
     recentPowerLogs.set(key, { power, ts: now });
-    console.log(`✅ PowerLog saved: ${clientId}, ${power}`);
+    console.log(`✅ PowerLog saved: ${clientId}:${entity}, ${power}`);
   } catch (err) {
-    console.error(`Power log error for ${clientId}:`, err);
+    console.error(`Power log error for ${clientId}:${entity}:`, err);
   }
 }
 
@@ -152,8 +153,6 @@ client.on('message', async (topic, message, packet) => {
 
   const deviceInfo = connectedClients.get(clientId);
 
-
-  // handle SENSOR
   if (sensorMatch) {
     for (const [entity, data] of Object.entries(payload)) {
       if (entity === 'Time' || typeof data !== 'object') continue;
@@ -164,16 +163,14 @@ client.on('message', async (topic, message, packet) => {
     return;
   }
 
-  // Determine entity for status logs
-  const entity = deviceInfo.entities.values().next().value || null;
+  const entity = deviceInfo.entities.values().next().value || 'main';
 
-  // handle POWER topic
   if (powerMatch) {
     const powerState = msgStr === 'ON' ? 'ON' : msgStr === 'OFF' ? 'OFF' : null;
     if (powerState && !pendingPowerUpdates.has(clientId)) {
       pendingPowerUpdates.set(clientId, true);
       try {
-        await logPowerStatus({ clientId, power: powerState });
+        await logPowerStatus({ clientId,entity, power: powerState });
         await logDeviceStatus(clientId, entity, powerState, 'connected');
       } finally {
         setTimeout(() => pendingPowerUpdates.delete(clientId), 100);
@@ -182,7 +179,6 @@ client.on('message', async (topic, message, packet) => {
     return;
   }
 
-  // handle RESULT or STATE
   if (resultMatch || stateMatch) {
     const powerState = payload?.POWER || payload?.POWER1 || null;
     if (powerState === 'ON' || powerState === 'OFF') {
@@ -200,12 +196,10 @@ async function getConnectedDevices() {
   return { success: true, count: result.length, devices: result };
 }
 
-
-
 async function getLatestSensorData(clientId, entity) {
   try {
     const sensor = await SensorData.findOne({ clientId, entity }).sort({ _id: -1 });
-    const status = await DeviceStatusLog.findOne({ clientId, entity }).sort({ _id: -1 });
+    const status = await Device.findOne({ clientId, entity }).select('power status message lastSeen');
     if (!sensor && !status) return { success: false, message: 'No data available' };
     return { success: true, data: { sensor, status } };
   } catch (err) {
@@ -230,8 +224,7 @@ async function sendCommand(clientId, entity) {
         if (topic === responseTopic1 || topic === responseTopic2) {
           clearTimeout(timeout);
           client.removeListener('message', handleMessage);
-          client.unsubscribe(responseTopic1);
-          client.unsubscribe(responseTopic2);
+          client.unsubscribe([responseTopic1, responseTopic2]);
 
           const str = payload.toString();
           let powerState = null;
@@ -333,17 +326,16 @@ async function getPowerLogs(accessToken) {
   return { success: true, count: logs.length, logs };
 }
 
-// Run automation rules every minute
 cron.schedule('* * * * *', async () => {
   try {
     const nowUtc = moment.utc();
     const automations = await Automation.find({});
-    const executionCache = new Set(); // Track executed rules this minute
+    const executionCache = new Set();
 
     for (const rule of automations) {
       const cacheKey = `${rule._id}_${nowUtc.format('HH:mm')}`;
       if (executionCache.has(cacheKey)) continue;
-      
+
       const now = nowUtc.clone().tz(rule.timezone);
       const time = now.format('HH:mm');
 
