@@ -5,79 +5,111 @@ exports.registerUser = async (req, res) => {
   /*
   #swagger.tags = ['Users']
   #swagger.summary = 'User Registration'
-  #swagger.description = 'Registers a new user with name, email, and password'
+  #swagger.description = 'Registers a new user with name, phoneNumber, and password'
   #swagger.parameters['body'] = {
       in: 'body',
       required: true,
       schema: {
           name: "tuuguu",
-          email: "tudu@gmail.com",
-          phoneNumber:99881175,
+          phoneNumber: 99881175,
           password: "1234"
       }
   }
   */
 
-  const { name, email,phoneNumber, password } = req.body;
-  const result = await service.registerUser({ name, email, phoneNumber,password });
+  try {
+    const { name, phoneNumber, password } = req.body;
 
-  if (result.success) {
-    const { accessToken, refreshToken } = result;
+    if (!name || !phoneNumber || !password) {
+      return res.status(422).json({
+        success: false,
+        message: "Missing required fields: name, phoneNumber, or password",
+      });
+    }
 
-    res.set('x-refresh-token', refreshToken);
+    const result = await service.registerUser({ name, phoneNumber, password });
 
-    
-    return res.status(200).json({
-      success:true,
-      message: result.message,
-      accessToken,
+    if (result.success) {
+      const { accessToken, refreshToken } = result;
+
+      res.set('x-refresh-token', refreshToken);
+
+      return res.status(201).json({
+        success: true,
+        message: result.message,
+        accessToken,
+      });
+    } else {
+      return res.status(409).json({
+        success: false,
+        message: result.message || "User already exists",
+      });
+    }
+
+  } catch (err) {
+    console.error("Registration service failure:", err.message);
+
+    return res.status(503).json({
+      success: false,
+      message: "Service temporarily unavailable. Please try again later.",
     });
-  } else {
-    return res.status(400).json({ message: result.message });
   }
-}
+};
+
 
 // /////////////////////////////////////
 exports.login = async (req, res) => {
-
   /*
   #swagger.tags = ['Users']
   #swagger.summary = 'User login'
-  #swagger.description = 'Logs in a user with email and password'
+  #swagger.description = 'Logs in a user with phoneNumber and password'
   #swagger.parameters['body'] = {
     in: 'body',
     required: true,
     schema: {
-      email: "apoxmn@gmail.com",
+      phoneNumber: "99881175",
       password: "1234"
     }
   }
-*/
+  */
 
-  const { email, password } = req.body;
+  const { phoneNumber, password } = req.body;
+
+  if (!phoneNumber || !password) {
+    return res.status(422).json({
+      success: false,
+      message: "Missing phoneNumber or password",
+    });
+  }
 
   try {
-    const result = await service.loginUser({ email, password });
-
+    const result = await service.loginUser({ phoneNumber, password });
     if (!result.success) {
-      return res.status(400).json({ message: result.message });
+      return res.status(401).json({
+        success: false,
+        message: result.message || "Invalid credentials",
+      });
     }
 
     const { accessToken, refreshToken } = result;
 
     res.set('x-refresh-token', refreshToken);
-    
+
     return res.status(200).json({
-      success:true,
+      success: true,
       message: result.message,
-      accessToken
+      accessToken,
     });
 
   } catch (err) {
-    console.error('Login route error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error("Login service error:", err.message);
+    return res.status(503).json({
+      success: false,
+      message: "Service temporarily unavailable. Please try again later.",
+    });
   }
-}
+};
+
 
 // //////////////////////////////////////////
 exports.refreshToken =  async (req, res) => {
@@ -102,7 +134,57 @@ exports.refreshToken =  async (req, res) => {
   return res.status(result.status).json({ success:true,accessToken: result.accessToken });
 }
 
-// ////////////////////////////////////////
+////////////////////////////////////////////
+
+
+
+
+exports.updateUsername = async (req, res) => {
+  /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Update username'
+    #swagger.description = 'Updates the user name using access token authentication.'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      schema: {
+        newName: "Tuuguu"
+      }
+    }
+  */
+
+  const authHeader = req.headers.authorization;
+  const { newName } = req.body;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+
+  if (!newName) {
+    return res.status(422).json({ success: false, message: 'New name is required' });
+  }
+
+  const accessToken = authHeader.split(' ')[1];
+
+  try {
+    const result = await userService.updateUsername({ accessToken, newName });
+    return res.status(result.status || 200).json(result);
+  } catch (err) {
+    console.error('Error in updateUsername controller:', err);
+    return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+  }
+};
+
+
+////////////////////////////////////////////
 exports.getUserData = async (req, res) => {
   /*
     #swagger.tags = ['Users']
@@ -118,14 +200,31 @@ exports.getUserData = async (req, res) => {
     }
   */
 
-  const result = await service.getUserData(req);
+  try {
+    const result = await service.getUserData(req);
 
-  if (!result.success) {
-    return res.status(result.status).json({ message: result.message });
+    if (!result.success) {
+      return res.status(result.status || 401).json({
+        success: false,
+        message: result.message || "Unauthorized or token invalid",
+      });
+    }
+
+    return res.status(result.status || 200).json({
+      success: true,
+      user: result.user,
+    });
+
+  } catch (err) {
+    console.error("getUserData error:", err.message);
+
+    return res.status(503).json({
+      success: false,
+      message: "Service temporarily unavailable. Please try again later.",
+    });
   }
+};
 
-  return res.status(result.status).json({ user: result.user });
-}
 
 // ////////////////////////////////////////////
 

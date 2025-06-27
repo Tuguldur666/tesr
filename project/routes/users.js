@@ -9,6 +9,8 @@ router.post('/login',userController.login );
 // //////////////////////////////////
 router.post('/refresh', userController.refreshToken);
 // //////////////////////////////////
+router.post('/updateUsername', userController.updateUsername);
+// //////////////////////////////////
 router.get('/getuser', userController.getUserData);
 
 

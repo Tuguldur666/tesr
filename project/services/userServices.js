@@ -5,21 +5,19 @@ const jwt = require('jsonwebtoken');
 
 
 
-async function registerUser({ name, email, phoneNumber, password }) {
+async function registerUser({ name,phoneNumber, password }) {
   try {
-
-    const verifiedEmailUser = await User.findOne({ email, isVerified: true });
     const verifiedPhoneUser = await User.findOne({ phoneNumber, isVerified: true });
 
-    console.error(verifiedEmailUser,verifiedPhoneUser)
+    console.error(verifiedPhoneUser)
 
-    if (verifiedEmailUser || verifiedPhoneUser) {
+    if (verifiedPhoneUser) {
       return { success: false, message: 'User already exists with this email or phone number' };
     }
 
     const existingUnverifiedUser = await User.findOne({
       isVerified: false,
-      $or: [{ email }, { phoneNumber }]
+      $or:{ phoneNumber }
     }).sort({ createdAt: -1 });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -28,12 +26,11 @@ async function registerUser({ name, email, phoneNumber, password }) {
 
     if (existingUnverifiedUser) {
       existingUnverifiedUser.name = name;
-      existingUnverifiedUser.email = email;
       existingUnverifiedUser.phoneNumber = phoneNumber;
       existingUnverifiedUser.password = password;
       userToSave = existingUnverifiedUser;
     } else {
-      userToSave = new User({ name, email, phoneNumber, password });
+      userToSave = new User({ name, phoneNumber, password });
     }
 
     await userToSave.save();
@@ -68,17 +65,17 @@ async function registerUser({ name, email, phoneNumber, password }) {
 
 ///////////////////////////////////////////////
 
-async function loginUser({ email, password }) {
+async function loginUser({ phoneNumber, password }) {
   try {
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ phoneNumber });
     if (!existingUser) {
-      return { success: false, message: 'Invalid email or password' };
+      return { success: false, message: 'Invalid phone number or password' };
     }
 
     const isMatch = await existingUser.comparePassword(password);
 
     if (!isMatch) {
-      return { success: false, message: 'Invalid email or password' };
+      return { success: false, message: 'Invalid phone number or password' };
     }
 
     if (!existingUser.isVerified) {
@@ -100,7 +97,50 @@ async function loginUser({ email, password }) {
   }
 }
 
-// ///////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+async function updateUsername({ accessToken, newName }) {
+  
+  if (!accessToken || !newName) {
+    return {
+      success: false,
+      message: 'User ID and new name are required',
+    };
+  }
+
+  const { userId, error } = verifyToken(accessToken);
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return {
+        success: false,
+        message: 'User not found',
+      };
+    }
+
+    user.name = newName;
+    await user.save();
+
+    return {
+      success: true,
+      message: 'Username updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      }
+    };
+  } catch (err) {
+    console.error('Error updating username:', err);
+    return {
+      success: false,
+      message: 'Failed to update username. Please try again later.',
+    };
+  }
+}
+
+
+/////////////////////////////////////////////////////////
 
 async function refreshToken(req) {
 
@@ -173,9 +213,8 @@ async function getUserData(req) {
   }
 }
 
-module.exports = getUserData;
 
 
 
-module.exports = { registerUser, loginUser, refreshToken ,getUserData}
+module.exports = { registerUser, loginUser, refreshToken ,getUserData,updateUsername}
 

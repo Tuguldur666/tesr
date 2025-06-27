@@ -11,46 +11,6 @@
     "http"
   ],
   "paths": {
-    "/connection": {
-      "post": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/tele": {
-      "post": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/stat": {
-      "post": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/discooonection": {
-      "post": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/": {
       "get": {
         "description": "",
@@ -67,7 +27,7 @@
           "Users"
         ],
         "summary": "User Registration",
-        "description": "Registers a new user with name, email, and password",
+        "description": "Registers a new user with name, phoneNumber, and password",
         "parameters": [
           {
             "name": "body",
@@ -79,10 +39,6 @@
                 "name": {
                   "type": "string",
                   "example": "tuuguu"
-                },
-                "email": {
-                  "type": "string",
-                  "example": "tudu@gmail.com"
                 },
                 "phoneNumber": {
                   "type": "number",
@@ -97,11 +53,17 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created"
           },
-          "400": {
-            "description": "Bad Request"
+          "409": {
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -112,7 +74,7 @@
           "Users"
         ],
         "summary": "User login",
-        "description": "Logs in a user with email and password",
+        "description": "Logs in a user with phoneNumber and password",
         "parameters": [
           {
             "name": "body",
@@ -121,9 +83,9 @@
             "schema": {
               "type": "object",
               "properties": {
-                "email": {
+                "phoneNumber": {
                   "type": "string",
-                  "example": "apoxmn@gmail.com"
+                  "example": "99881175"
                 },
                 "password": {
                   "type": "string",
@@ -137,11 +99,14 @@
           "200": {
             "description": "OK"
           },
-          "400": {
-            "description": "Bad Request"
+          "401": {
+            "description": "Unauthorized"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -169,6 +134,58 @@
         }
       }
     },
+    "/users/updateUsername": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update username",
+        "description": "Updates the user name using access token authentication.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "description": "Bearer access token",
+            "type": "string",
+            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "newName": {
+                  "type": "string",
+                  "example": "Tuuguu"
+                }
+              }
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/users/getuser": {
       "get": {
         "tags": [
@@ -187,8 +204,14 @@
           }
         ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -198,8 +221,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "User login",
-        "description": "Logs in a user with email and password",
+        "summary": "Verify user via OTP",
+        "description": "Verifies a user by phone number and OTP code",
         "parameters": [
           {
             "name": "body",
@@ -224,11 +247,14 @@
           "200": {
             "description": "OK"
           },
-          "400": {
-            "description": "Bad Request"
+          "401": {
+            "description": "Unauthorized"
           },
-          "500": {
-            "description": "Internal Server Error"
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -239,7 +265,7 @@
           "Auth"
         ],
         "summary": "Send OTP for password reset",
-        "description": "Sends a 6-digit OTP",
+        "description": "Sends a 6-digit OTP to the provided phone number",
         "parameters": [
           {
             "name": "body",
@@ -262,6 +288,12 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -271,8 +303,8 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Send OTP for password reset",
-        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "summary": "Verify OTP for password reset",
+        "description": "Verifies a 6-digit OTP sent to the user’s registered phone number for password reset.",
         "parameters": [
           {
             "name": "body",
@@ -287,7 +319,7 @@
                 },
                 "code": {
                   "type": "string",
-                  "example": "dsfsdfsd"
+                  "example": "712329"
                 }
               }
             }
@@ -297,8 +329,14 @@
           "200": {
             "description": "OK"
           },
-          "400": {
-            "description": "Bad Request"
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -308,8 +346,8 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Send OTP for password reset",
-        "description": "Sends a 6-digit OTP to the user’s registered phone number for password reset.",
+        "summary": "Reset password",
+        "description": "Resets the user’s password after OTP verification.",
         "parameters": [
           {
             "name": "body",
@@ -324,7 +362,7 @@
                 },
                 "newPassword": {
                   "type": "string",
-                  "example": "sdfsdfdf"
+                  "example": "newStrongPassword123"
                 }
               }
             }
@@ -336,6 +374,12 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
