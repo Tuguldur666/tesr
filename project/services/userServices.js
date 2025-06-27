@@ -4,25 +4,22 @@ const otp = require('./otpServices');
 const jwt = require('jsonwebtoken');
 
 
-
-async function registerUser({ name,phoneNumber, password }) {
+async function registerUser({ name, phoneNumber, password }) {
   try {
     const verifiedPhoneUser = await User.findOne({ phoneNumber, isVerified: true });
 
-    console.error(verifiedPhoneUser)
+    console.log('Verified phone user:', verifiedPhoneUser);
 
     if (verifiedPhoneUser) {
-      return { success: false, message: 'User already exists with this email or phone number' };
+      return { success: false, message: 'User already exists with this phone number' };
     }
 
     const existingUnverifiedUser = await User.findOne({
       isVerified: false,
       $or: [{ phoneNumber }]
-
     }).sort({ createdAt: -1 });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
     let userToSave;
 
     if (existingUnverifiedUser) {
@@ -54,7 +51,7 @@ async function registerUser({ name,phoneNumber, password }) {
       refreshToken,
     };
   } catch (err) {
-    console.error('Error in registerUser:', err);
+    console.error('❌ Error in registerUser:', err);
     return {
       success: false,
       message: 'Registration failed due to server error',

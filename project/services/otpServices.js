@@ -5,8 +5,9 @@ require('dotenv').config();
 
 
 async function sendMessage(userId, phoneNumber, code, authType) {
-    console.error("authType in send meassage",authType)
-    console.error("phone number in send meassage",phoneNumber)
+  console.log("authType in sendMessage:", authType);
+  console.log("phoneNumber in sendMessage:", phoneNumber);
+
   try {
     const response = await axios.get(process.env.MESSAGE_API, {
       params: {
@@ -24,10 +25,17 @@ async function sendMessage(userId, phoneNumber, code, authType) {
       : response.data?.Result;
 
     if (result === 'SUCCESS') {
-      
-      await Otp.deleteMany({ userId, authType});
+      await Otp.deleteMany({ userId, authType });
+      console.log('[OTP DELETE] Existing codes removed');
 
-      await Otp.create({ userId, code , authType});
+      try {
+        const otpDoc = await Otp.create({ userId, code, authType });
+        console.log('[OTP CREATED]', otpDoc);
+      } catch (createErr) {
+        console.error('[OTP CREATE ERROR]', createErr);
+        return false;
+      }
+
       return true;
     } else {
       console.error('[OTP API Failure]', response.data);
@@ -38,6 +46,7 @@ async function sendMessage(userId, phoneNumber, code, authType) {
     return false;
   }
 }
+
 // ////////////////////////////////////////////////////////////////////
 
 
