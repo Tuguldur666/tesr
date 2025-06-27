@@ -17,7 +17,8 @@ async function registerUser({ name,phoneNumber, password }) {
 
     const existingUnverifiedUser = await User.findOne({
       isVerified: false,
-      $or:{ phoneNumber }
+      $or: [{ phoneNumber }]
+
     }).sort({ createdAt: -1 });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
