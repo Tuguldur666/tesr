@@ -9,6 +9,7 @@ const AutomationLog = require('../models/autolog');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { verifyToken } = require('../utils/token');
+const { registerDevice } = require('../services/deviceServices');
 
 const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
   username: process.env.MQTT_USER,
@@ -20,8 +21,8 @@ const connectedClients = new Map();
 const recentPowerLogs = new Map();
 const pendingPowerUpdates = new Map();
 const recentAutomationLogs = new Map();
-
 let powerLogCallCount = 0;
+let teleSensorDebounceTimer = null;
 
 async function ensureIndexes() {
   try {
@@ -46,11 +47,7 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
 async function logDeviceStatus(clientId, entity, power, status) {
   try {
     const filter = { clientId, entity };
-    const update = {
-      power,
-      status,
-      lastSeen: new Date(),
-    };
+    const update = { power, status, lastSeen: new Date() };
     const result = await Device.updateOne(filter, { $set: update });
     if (result.matchedCount === 0) {
       console.warn(`⚠️ Device not found for clientId=${clientId}, entity=${entity}`);
@@ -63,7 +60,6 @@ async function logDeviceStatus(clientId, entity, power, status) {
 async function logPowerStatus({ clientId, entity, power }) {
   powerLogCallCount++;
   console.log(`logPowerStatus called ${powerLogCallCount} times for ${clientId}:${entity} with power=${power}`);
-
   if (!['ON', 'OFF'].includes(power)) return;
 
   const now = Date.now();
@@ -71,7 +67,7 @@ async function logPowerStatus({ clientId, entity, power }) {
   const last = recentPowerLogs.get(key);
 
   if (last && last.power === power && now - last.ts < 1000) {
-    console.log(`🛑 Skipping duplicate power log for ${clientId}:${entity}, power=${power}`);
+    console.log(`🚑 Skipping duplicate power log for ${clientId}:${entity}, power=${power}`);
     return;
   }
 
@@ -90,7 +86,7 @@ async function logAutomationExecution({ ruleId, action }) {
   const last = recentAutomationLogs.get(key);
 
   if (last && now - last < 5000) {
-    console.log(`🛑 Skipping duplicate AutomationLog for ${key}`);
+    console.log(`🚑 Skipping duplicate AutomationLog for ${key}`);
     return;
   }
 
@@ -157,9 +153,18 @@ client.on('message', async (topic, message, packet) => {
     for (const [entity, data] of Object.entries(payload)) {
       if (entity === 'Time' || typeof data !== 'object') continue;
       deviceInfo.entities.add(entity);
-      console.log('Data', data);
       await new SensorData({ clientId, entity, data, timestamp: new Date() }).save();
     }
+
+    if (teleSensorDebounceTimer) clearTimeout(teleSensorDebounceTimer);
+    teleSensorDebounceTimer = setTimeout(async () => {
+      try {
+        const result = await getConnectedDevices();
+        console.log(`📱 Synced ${result.count} devices after SENSOR burst`);
+      } catch (err) {
+        console.error('❌ Failed to sync devices:', err.message);
+      }
+    }, 10000);
     return;
   }
 
@@ -170,7 +175,7 @@ client.on('message', async (topic, message, packet) => {
     if (powerState && !pendingPowerUpdates.has(clientId)) {
       pendingPowerUpdates.set(clientId, true);
       try {
-        await logPowerStatus({ clientId,entity, power: powerState });
+        await logPowerStatus({ clientId, entity, power: powerState });
         await logDeviceStatus(clientId, entity, powerState, 'connected');
       } finally {
         setTimeout(() => pendingPowerUpdates.delete(clientId), 100);
@@ -187,29 +192,36 @@ client.on('message', async (topic, message, packet) => {
   }
 });
 
-
 async function getConnectedDevices() {
-  //  Get all connected devices
-  const connected = Array.from(connectedClients.entries()).map(([clientId, info]) => ({
-    clientId,
-    type: info.type || null,
-    entities: Array.from(info.entities || []),
-  }));
+  const connected = Array.from(connectedClients.entries());
+  const devices = [];
 
-  // Get registered devices from DB by clientIds
-  const clientIds = connected.map(d => d.clientId);
-  const registeredDevices = await Device.find({ clientId: { $in: clientIds } }).select('clientId owner');
-  const registeredMap = new Map(registeredDevices.map(d => [d.clientId, d.owner])); // Map: clientId -> ownerId
+  for (const [clientId, info] of connected) {
+    const type = info.type || null;
+    const entities = Array.from(info.entities || []);
 
-  // Each connected device with registration status
-  const result = connected.map(device => ({
-    ...device,
-    registered: registeredMap.has(device.clientId),
-    owner: registeredMap.get(device.clientId) || null,
-  }));
+    for (const entity of entities.length > 0 ? entities : ['main']) {
+      if (entity === 'main') continue; 
+      const existingDevice = await Device.findOne({ clientId, entity });
+      if (!existingDevice) {
+        await registerDevice(clientId, entity, type);
+        console.log(`📅 Registered new device: ${clientId}, entity: ${entity}, type: ${type}`);
+      }
+      devices.push({ clientId, entity, type });
+    }
+  }
 
-  return { success: true, count: result.length, devices: result };
+  return { success: true, count: devices.length, devices };
 }
+
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    const result = await getConnectedDevices();
+    console.log(`⏰ Periodic device sync: ${result.count} devices connected.`);
+  } catch (err) {
+    console.error('❌ Error in periodic getConnectedDevices call:', err.message);
+  }
+});
 /////////////////////////////////////////////////////////////////////////
 
 

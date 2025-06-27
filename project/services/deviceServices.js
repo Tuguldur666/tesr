@@ -5,12 +5,9 @@ const { verifyToken } = require('../utils/token');
 
 
 
-async function registerDevice(clientId, entity, type, accessToken) {
+async function registerDevice(clientId, entity, type) {
   try {
-    const { userId, error } = verifyToken(accessToken);
-    if (error) return { success: false, message: error };
-
-    const existingDevice = await Device.findOne({ clientId, entity, owner: userId });
+    const existingDevice = await Device.findOne({ clientId, entity});
     if (existingDevice) {
       return { success: false, message: 'Device already registered' };
     }
@@ -19,7 +16,7 @@ async function registerDevice(clientId, entity, type, accessToken) {
       clientId,
       entity,
       type,
-      owner: new mongoose.Types.ObjectId(userId),
+      owner: [],
       status: 'disconnected',       
       message: '',                   
       lastUpdated: new Date(),       
