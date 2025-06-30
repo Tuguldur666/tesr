@@ -9,6 +9,6 @@ router.get('/getUserDevice', deviceController.getDeviceById);
 ///////////////////////////////////////////////////////////////////
 router.delete('/deleteDevice', deviceController.unregisterDevice);
 /////////////////////////////////////////////////////////////////////
-router.delete('/getDevices', deviceController.getDevices);
+router.get('/getDevices', deviceController.getDevices);
 
 module.exports = router;
