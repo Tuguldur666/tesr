@@ -4,9 +4,11 @@ const deviceController = require('../controllers/deviceController');
 
 
 router.post('/registerDevices', deviceController.registerDevice);
-
+////////////////////////////////////////////////////////////////
 router.get('/getUserDevice', deviceController.getDeviceById);
-
+///////////////////////////////////////////////////////////////////
 router.delete('/deleteDevice', deviceController.unregisterDevice);
+/////////////////////////////////////////////////////////////////////
+router.delete('/getDevices', deviceController.getDevices);
 
 module.exports = router;

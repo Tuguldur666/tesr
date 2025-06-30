@@ -79,7 +79,7 @@ exports.getDeviceById = async (req, res) => {
   }
 };
 
-
+/////////////////////////////////////////////////////
 exports.unregisterDevice = async (req, res) => {
   /*
     #swagger.tags = ['Devices']
@@ -114,6 +114,42 @@ exports.unregisterDevice = async (req, res) => {
     }
 
     const result = await deviceService.unregisterDevice(accessToken, clientId, entity);
+
+    if (!result.success) {
+      return res.status(404).json(result); 
+    }
+
+    res.status(200).json(result); 
+  } catch (error) {
+    res.status(503).json({ success: false, message: 'Service unavailable', error: error.message });
+  }
+};
+////////////////////////////////////////////////////
+
+exports.getDevices = async (req, res) => {
+  /*
+    #swagger.tags = ['Devices']
+    #swagger.summary = 'Get devices'
+      #swagger.parameters['Authorization'] = {
+      in: 'header',
+      description: 'Bearer access token',
+      required: true,
+      type: 'string'
+    }
+  */
+  try {
+
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Missing or invalid Authorization header' });
+    }
+    const accessToken = authHeader.split(' ')[1];
+
+    if (!accessToken) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    const result = await deviceService.getDevices(accessToken);
 
     if (!result.success) {
       return res.status(404).json(result); 

@@ -37,8 +37,8 @@ async function registerDevice(clientId, entity, type) {
   }
 }
 
-
 /////////////////////////////////////////////////////////////////////////
+
 async function addDeviceToUser(id, phoneNumber, accessToken) {
   try {
     const decoded = verifyToken(accessToken); 
@@ -80,16 +80,11 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
 
 ////////////////////////////////////////////////////
 
-
-async function getDevices(accessToken, req) {
-  const { userId, error } = verifyToken(accessToken);
+async function getDevices(accessToken) {
+  const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
-  const filter = req?.query || {}; 
-  const query = { owner: userId };
-
-  if (filter.clientId) query.clientId = filter.clientId;
-  if (filter.entity) query.entity = filter.entity;
+  const query = isAdmin ? {} : { owner: userId };
 
   const devices = await Device.find(query);
   return { success: true, devices };
@@ -115,7 +110,6 @@ async function unregisterDevice(accessToken, clientId, entity) {
 }
 
 ////////////////////////////////////////
-
 
 module.exports = {
   registerDevice,
