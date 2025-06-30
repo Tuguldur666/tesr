@@ -168,8 +168,8 @@
           }
         ],
         "responses": {
-          "500": {
-            "description": "Internal Server Error"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
@@ -850,7 +850,7 @@
       }
     },
     "/device/addUserToDevice": {
-      "get": {
+      "post": {
         "tags": [
           "Users"
         ],
@@ -909,7 +909,7 @@
       }
     },
     "/device/removeUserFromDevice": {
-      "get": {
+      "post": {
         "tags": [
           "Devices"
         ],

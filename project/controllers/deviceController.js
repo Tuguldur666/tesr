@@ -120,7 +120,8 @@ exports.addUserToDevice = async (req, res) => {
       return res.status(422).json({ success: false, message: 'Missing device ID or phone number' });
     }
 
-    const result = await deviceService.addDeviceToUser({ id, phoneNumber, accessToken });
+    const result = await deviceService.addDeviceToUser(id, phoneNumber.toString(), accessToken);
+
 
     return res.status(result.success ? 200 : 400).json(result);
 

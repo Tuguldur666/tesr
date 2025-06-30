@@ -41,21 +41,28 @@ async function registerDevice(clientId, entity, type) {
 
 async function addDeviceToUser(id, phoneNumber, accessToken) {
   try {
-    const decoded = verifyToken(accessToken); 
-    const userIdFromToken = decoded.id;
+    if (!phoneNumber) {
+      return { success: false, message: 'Phone number is required' };
+    }
+    if (!accessToken) {
+      return { success: false, message: 'Access token is required' };
+    }
 
-    const existingUser = await User.findOne({ phoneNumber });
+    const decoded = verifyToken(accessToken);
+    if (!decoded || !decoded.userId) {
+      return { success: false, message: 'Invalid access token' };
+    }
+    const userIdFromToken = decoded.userId;
+
+    const normalizedPhone = phoneNumber.trim();
+
+    console.log('Looking for user with phoneNumber:', normalizedPhone);
+
+    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+    console.log('User found:', existingUser);
+
     if (!existingUser) {
       return { success: false, message: 'User does not exist' };
-    }
-
-    if (existingUser._id.toString() !== userIdFromToken) {
-      return { success: false, message: 'Access denied: Token does not match user' };
-    }
-
-    const existingDevice = await Device.findById(id);
-    if (!existingDevice) {
-      return { success: false, message: 'Device does not exist' };
     }
 
     const updatedDevice = await Device.findByIdAndUpdate(
@@ -71,12 +78,14 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
     };
 
   } catch (error) {
+    console.error('Error in addDeviceToUser:', error);
     return {
       success: false,
       message: 'Error registering device: ' + error.message,
     };
   }
 }
+
 
 ////////////////////////////////////////////////////
 
