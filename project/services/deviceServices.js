@@ -65,18 +65,32 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
       return { success: false, message: 'User does not exist' };
     }
 
-    const updatedDevice = await Device.findByIdAndUpdate(
-      id,
-      { $addToSet: { owner: existingUser._id } },
-      { new: true }
+   
+    const device = await Device.findById(id);
+    if (!device) {
+      return { success: false, message: 'Device does not exist' };
+    }
+
+    const isAlreadyOwner = device.owner.some(
+      (ownerId) => ownerId.toString() === existingUser._id.toString()
     );
+
+    if (isAlreadyOwner) {
+      return {
+        success: true,
+        message: `User is already linked to device "${device.clientId}, ${device.entity}".`,
+        device,
+      };
+    }
+
+    device.owner.push(existingUser._id);
+    const updatedDevice = await device.save();
 
     return {
       success: true,
       message: `Device "${updatedDevice.clientId}, ${updatedDevice.entity}" linked to user successfully.`,
       device: updatedDevice,
     };
-
   } catch (error) {
     console.error('Error in addDeviceToUser:', error);
     return {
