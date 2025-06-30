@@ -90,8 +90,8 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
 
     return {
       success: true,
-      message: `Device "${updatedDevice.clientId}, ${updatedDevice.entity}" linked to user successfully.`,
-      device: updatedDevice,
+      message: `Device "${device.clientId}, ${device.entity}" linked to user successfully.`,
+      device: device
     };
   } catch (error) {
     console.error('Error in addDeviceToUser:', error);
@@ -191,11 +191,13 @@ async function getDeviceOwnersPhoneNumbers(deviceId) {
       return { success: false, message: 'Device not found' };
     }
 
-    const owners = device.owner.map((entry) => ({
-      userId: entry.userId._id,
-      phoneNumber: entry.userId.phoneNumber,
-      name: entry.userId.name || null,
-    }));
+    const owners = device.owner
+      .filter((entry) => entry.userId) // prevent undefined
+      .map((entry) => ({
+        userId: entry.userId._id,
+        phoneNumber: entry.userId.phoneNumber,
+        name: entry.userId.name || null,
+      }));
 
     return {
       success: true,
@@ -209,7 +211,6 @@ async function getDeviceOwnersPhoneNumbers(deviceId) {
     };
   }
 }
-
 
 
 
