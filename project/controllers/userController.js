@@ -136,7 +136,7 @@ exports.refreshToken = async (req, res) => {
 
   } catch (err) {
     console.error('Unexpected error in refreshToken controller:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    return res.status(503).json({ success: false, message: 'Internal server error' });
   }
 };
 
