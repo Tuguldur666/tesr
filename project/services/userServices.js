@@ -142,8 +142,8 @@ async function updateUsername({ accessToken, newName }) {
 
 async function refreshToken(req) {
 
-  const refreshToken = req.cookies?.jwt;
-  console.log('Refresh token from cookie:', refreshToken);
+  const refreshToken = req.headers['x-refresh-token'];
+  console.log('Refresh token from header:', refreshToken);
 
   if (!refreshToken) {
     console.log('No refresh token provided');
@@ -169,12 +169,11 @@ async function refreshToken(req) {
       accessToken: newAccessToken
     };
   } catch (err) {
-
     console.error('Refresh error:', err);
-
     return { success: false, status: 403, message: 'Invalid or expired refresh token' };
   }
 }
+
 // //////////////////////////////////////////
 
 

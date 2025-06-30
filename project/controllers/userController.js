@@ -112,27 +112,33 @@ exports.login = async (req, res) => {
 
 
 // //////////////////////////////////////////
-exports.refreshToken =  async (req, res) => {
+exports.refreshToken = async (req, res) => {
   /*
-#swagger.tags = ['Users']
-#swagger.summary = 'Refresh access token'
-#swagger.description = 'Returns a new access token using the refresh token'
-#swagger.parameters['x-refresh-token'] = {
+  #swagger.tags = ['Users']
+  #swagger.summary = 'Refresh access token'
+  #swagger.description = 'Returns a new access token using the refresh token'
+  #swagger.parameters['x-refresh-token'] = {
     in: 'header',
     description: 'Refresh token (optional for Swagger testing)',
     required: false,
     type: 'string'
-}
-*/
-
-  const result = await service.refreshToken(req);
-
-  if (!result.success) {
-    return res.status(result.status).json({ message: result.message });
   }
+  */
 
-  return res.status(result.status).json({ success:true,accessToken: result.accessToken });
-}
+  try {
+    const result = await service.refreshToken(req);
+
+    if (!result.success) {
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+
+    return res.status(result.status).json({ success: true, accessToken: result.accessToken });
+
+  } catch (err) {
+    console.error('Unexpected error in refreshToken controller:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
 
 ////////////////////////////////////////////
 
