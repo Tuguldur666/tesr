@@ -11,7 +11,7 @@ const deviceSchema = new mongoose.Schema({
     }
   ],
   // Status-related fields:
-  power: { type: String, enum: ['on', 'off', 'unknown'], default: 'unknown' },
+  power: { type: String, enum: ['ON', 'OFF', 'unknown'], default: 'unknown' },
   status: { type: String, enum: ['connected', 'disconnected', 'error'], default: 'disconnected' },
   lastSeen: { type: Date },
 });
