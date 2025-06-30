@@ -13,7 +13,7 @@ router.post('/updateUsername', userController.updateUsername);
 ////////////////////////////////////
 router.get('/getuser', userController.getUserData);
 ////////////////////////////////////
-router.get('/addUserToDevice', userController.addUserToDevice);
+
 
 
 module.exports = router;

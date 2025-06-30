@@ -256,65 +256,6 @@
         }
       }
     },
-    "/users/addUserToDevice": {
-      "get": {
-        "tags": [
-          "Users"
-        ],
-        "summary": "Add user to device",
-        "description": "Links the authenticated user (via access token) to a device using device ID and phoneNumber",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "description": "Bearer access token",
-            "type": "string",
-            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "example": "DEVICE_OBJECT_ID"
-                },
-                "phoneNumber": {
-                  "type": "number",
-                  "example": 99881175
-                }
-              }
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Unprocessable Entity"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
     "/otp/verify": {
       "post": {
         "tags": [
@@ -868,165 +809,8 @@
         }
       }
     },
-    "/device/registerDevices": {
-      "post": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Register a new device",
-        "description": "",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "clientId": {
-                  "type": "string",
-                  "example": "VIOT_0D2BEC"
-                },
-                "entity": {
-                  "type": "string",
-                  "example": "SI7021"
-                },
-                "type": {
-                  "type": "string",
-                  "example": "th"
-                }
-              }
-            }
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "description": "Bearer access token",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "409": {
-            "description": "Conflict"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
-    "/device/getUserDevice": {
-      "get": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Get device details by deviceId",
-        "description": "",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "description": "Bearer access token",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
-    "/device/deleteDevice": {
-      "delete": {
-        "tags": [
-          "Devices"
-        ],
-        "summary": "Unregister/delete a device",
-        "description": "",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "clientId": {
-                  "type": "string",
-                  "example": "VIOT_0D2BEC"
-                },
-                "entity": {
-                  "type": "string",
-                  "example": "SI7021"
-                }
-              }
-            }
-          },
-          {
-            "name": "Authorization",
-            "in": "header",
-            "description": "Bearer access token",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
     "/device/getDevices": {
-      "delete": {
+      "get": {
         "tags": [
           "Devices"
         ],
@@ -1058,6 +842,124 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/device/addUserToDevice": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Add user to device",
+        "description": "Links the authenticated user (via access token) to a device using device ID and phoneNumber",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "description": "Bearer access token",
+            "type": "string",
+            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "DEVICE_OBJECT_ID"
+                },
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                }
+              }
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/device/removeUserFromDevice": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Remove user from device",
+        "description": "Removes the authenticated user from the device owner list using access token.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "description": "Bearer access token",
+            "type": "string",
+            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "DEVICE_OBJECT_ID"
+                },
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
+                }
+              }
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Unprocessable Entity"
           },
           "503": {
             "description": "Service Unavailable"

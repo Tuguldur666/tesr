@@ -91,29 +91,51 @@ async function getDevices(accessToken) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
+async function removeUserFromDevice(id, phoneNumber, accessToken) {
+  try {
+    const decoded = verifyToken(accessToken);
+    const userIdFromToken = decoded.id;
 
-async function unregisterDevice(accessToken, clientId, entity) {
-  const { userId, error } = verifyToken(accessToken);
-  if (error) return { success: false, message: error };
+    const existingUser = await User.findOne({ phoneNumber });
+    if (!existingUser) {
+      return { success: false, message: 'User does not exist' };
+    }
 
-  const query = { owner: userId };
-  if (clientId) query.clientId = clientId;
-  if (entity) query.entity = entity;
+    if (existingUser._id.toString() !== userIdFromToken) {
+      return { success: false, message: 'Access denied: Token does not match user' };
+    }
 
-  const deleted = await Device.deleteOne(query);
+    const existingDevice = await Device.findById(id);
+    if (!existingDevice) {
+      return { success: false, message: 'Device does not exist' };
+    }
 
-  if (deleted.deletedCount === 0) {
-    return { success: false, message: 'Device not found or already deleted' };
+    const updatedDevice = await Device.findByIdAndUpdate(
+      id,
+      { $pull: { owner: existingUser._id } },
+      { new: true }
+    );
+
+    return {
+      success: true,
+      message: `User removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
+      device: updatedDevice,
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error removing user from device: ' + error.message,
+    };
   }
-
-  return { success: true, message: `Device "${clientId}" unregistered successfully.` };
 }
+///////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////
+
 
 module.exports = {
   registerDevice,
   getDevices,
-  unregisterDevice,
   addDeviceToUser,
+  removeUserFromDevice,
 };
