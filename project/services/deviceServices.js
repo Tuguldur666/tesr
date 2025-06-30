@@ -83,8 +83,10 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
       };
     }
 
-    device.owner.push(existingUser._id);
-    const updatedDevice = await device.save();
+    device.owner.push({
+        userId: existingUser._id,
+        addedBy: userIdFromToken,
+      });
 
     return {
       success: true,
@@ -116,28 +118,52 @@ async function getDevices(accessToken) {
 ////////////////////////////////////////////////////////////////////////////
 async function removeUserFromDevice(id, phoneNumber, accessToken) {
   try {
-    const decoded = verifyToken(accessToken);
-    const userIdFromToken = decoded.id;
+    if (!accessToken) {
+      return { success: false, message: 'Access token is required' };
+    }
+    if (!phoneNumber) {
+      return { success: false, message: 'Phone number is required' };
+    }
 
-    const existingUser = await User.findOne({ phoneNumber });
+    const decoded = verifyToken(accessToken);
+    if (!decoded || !decoded.userId) {
+      return { success: false, message: 'Invalid access token' };
+    }
+    const requestingUserId = decoded.userId;
+    const isAdmin = decoded.isAdmin === true;
+
+    const normalizedPhone = phoneNumber.trim();
+
+    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
     if (!existingUser) {
       return { success: false, message: 'User does not exist' };
     }
 
-    if (existingUser._id.toString() !== userIdFromToken) {
-      return { success: false, message: 'Access denied: Token does not match user' };
-    }
-
-    const existingDevice = await Device.findById(id);
-    if (!existingDevice) {
+    const device = await Device.findById(id);
+    if (!device) {
       return { success: false, message: 'Device does not exist' };
     }
 
-    const updatedDevice = await Device.findByIdAndUpdate(
-      id,
-      { $pull: { owner: existingUser._id } },
-      { new: true }
+    const ownerEntry = device.owner.find(
+      (o) => o.userId.toString() === existingUser._id.toString()
     );
+
+    if (!ownerEntry) {
+      return { success: false, message: 'User is not linked to this device' };
+    }
+
+    if (!isAdmin && ownerEntry.addedBy.toString() !== requestingUserId) {
+      return {
+        success: false,
+        message: 'Access denied: you can only remove users you added',
+      };
+    }
+
+    device.owner = device.owner.filter(
+      (o) => o.userId.toString() !== existingUser._id.toString()
+    );
+
+    const updatedDevice = await device.save();
 
     return {
       success: true,
@@ -146,13 +172,44 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
     };
 
   } catch (error) {
+    console.error('Error removing user from device:', error);
     return {
       success: false,
       message: 'Error removing user from device: ' + error.message,
     };
   }
 }
+
+
+
 ///////////////////////////////////////////////////////////////////
+
+async function getDeviceOwnersPhoneNumbers(deviceId) {
+  try {
+    const device = await Device.findById(deviceId).populate('owner.userId', 'phoneNumber name');
+    if (!device) {
+      return { success: false, message: 'Device not found' };
+    }
+
+    const owners = device.owner.map((entry) => ({
+      userId: entry.userId._id,
+      phoneNumber: entry.userId.phoneNumber,
+      name: entry.userId.name || null,
+    }));
+
+    return {
+      success: true,
+      owners,
+    };
+  } catch (error) {
+    console.error('Error fetching device owners:', error);
+    return {
+      success: false,
+      message: 'Error fetching device owners: ' + error.message,
+    };
+  }
+}
+
 
 
 
@@ -161,4 +218,5 @@ module.exports = {
   getDevices,
   addDeviceToUser,
   removeUserFromDevice,
+  getDeviceOwnersPhoneNumbers,
 };

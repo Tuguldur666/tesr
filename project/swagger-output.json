@@ -849,6 +849,46 @@
         }
       }
     },
+    "/device/getOwners": {
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Get phone numbers of users belonging to a device",
+        "description": "",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "body",
+            "description": "ID of the device",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceId": {
+                  "type": "string",
+                  "example": "DEVICE_OBJECT_ID"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/device/addUserToDevice": {
       "post": {
         "tags": [

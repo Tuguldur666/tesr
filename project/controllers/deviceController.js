@@ -181,4 +181,36 @@ exports.removeUserFromDevice = async (req, res) => {
     return res.status(503).json({ success: false, message: 'Internal server error' });
   }
 };
+/////////////////////////////////////////////////////////////////////////////////////////////
 
+exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
+  /*
+    #swagger.tags = ['Devices']
+    #swagger.summary = 'Get phone numbers of users belonging to a device'
+    #swagger.parameters['deviceId'] = {
+      in: 'body',
+      description: 'ID of the device',
+      required: true,
+      schema: { deviceId: 'DEVICE_OBJECT_ID' }
+    }
+  */
+
+  try {
+    const { deviceId } = req.body;
+
+    if (!deviceId) {
+      return res.status(400).json({ success: false, message: 'Device ID is required' });
+    }
+
+    const result = await deviceService.getDeviceOwnersPhoneNumbers(deviceId);
+
+    if (!result.success) {
+      return res.status(404).json({ success: false, message: result.message });
+    }
+
+    return res.status(200).json({ success: true, owners: result.owners });
+  } catch (error) {
+    console.error('Error in getDeviceOwnersPhoneNumbers controller:', error);
+    return res.status(503).json({ success: false, message: 'Server error' });
+  }
+};
