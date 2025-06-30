@@ -1,13 +1,13 @@
 const Device = require('../models/Device');
-const SensorData = require('../models/data'); 
 const mongoose = require('mongoose');
+const User = require('../models/user')
 const { verifyToken } = require('../utils/token'); 
 
 
 
 async function registerDevice(clientId, entity, type) {
   try {
-    const existingDevice = await Device.findOne({ clientId, entity});
+    const existingDevice = await User.findOne({ clientId, entity});
     if (existingDevice) {
       return { success: false, message: 'Device already registered' };
     }
@@ -39,7 +39,46 @@ async function registerDevice(clientId, entity, type) {
 
 
 /////////////////////////////////////////////////////////////////////////
+async function addDeviceToUser(id, phoneNumber, accessToken) {
+  try {
+    const decoded = verifyToken(accessToken); 
+    const userIdFromToken = decoded.id;
 
+    const existingUser = await User.findOne({ phoneNumber });
+    if (!existingUser) {
+      return { success: false, message: 'User does not exist' };
+    }
+
+    if (existingUser._id.toString() !== userIdFromToken) {
+      return { success: false, message: 'Access denied: Token does not match user' };
+    }
+
+    const existingDevice = await Device.findById(id);
+    if (!existingDevice) {
+      return { success: false, message: 'Device does not exist' };
+    }
+
+    const updatedDevice = await Device.findByIdAndUpdate(
+      id,
+      { $addToSet: { owner: existingUser._id } },
+      { new: true }
+    );
+
+    return {
+      success: true,
+      message: `Device "${updatedDevice.clientId}, ${updatedDevice.entity}" linked to user successfully.`,
+      device: updatedDevice,
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error registering device: ' + error.message,
+    };
+  }
+}
+
+////////////////////////////////////////////////////
 
 
 async function getDevices(accessToken, req) {
@@ -82,4 +121,5 @@ module.exports = {
   registerDevice,
   getDevices,
   unregisterDevice,
+  addDeviceToUser,
 };
