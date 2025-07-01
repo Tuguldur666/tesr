@@ -188,6 +188,14 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
   /*
     #swagger.tags = ['Devices']
     #swagger.summary = 'Get phone numbers of users belonging to a device'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
     #swagger.parameters['deviceId'] = {
       in: 'body',
       description: 'ID of the device',
@@ -197,13 +205,19 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
   */
 
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Access token required' });
+    }
+
+    const accessToken = authHeader.split(' ')[1];
     const { deviceId } = req.body;
 
     if (!deviceId) {
       return res.status(400).json({ success: false, message: 'Device ID is required' });
     }
 
-    const result = await deviceService.getDeviceOwnersPhoneNumbers(deviceId);
+    const result = await deviceService.getDeviceOwnersPhoneNumbers(deviceId , accessToken);
 
     if (!result.success) {
       return res.status(404).json({ success: false, message: result.message });

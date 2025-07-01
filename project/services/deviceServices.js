@@ -194,25 +194,57 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
 
 ///////////////////////////////////////////////////////////////////
 
-async function getDeviceOwnersPhoneNumbers(deviceId) {
+async function getDeviceOwnersPhoneNumbers(deviceId, accessToken) {
   try {
+    // Verify token
+    const decoded = verifyToken(accessToken);
+    if (!decoded || !decoded.userId) {
+      return { success: false, message: 'Invalid or missing access token' };
+    }
+
+    const currentUserId = decoded.userId;
+    const isAdmin = decoded.isAdmin === true;
+
+    if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+      return { success: false, message: 'Invalid device ID format' };
+    }
+
+    // Fetch and populate owner.userId
     const device = await Device.findById(deviceId).populate('owner.userId', 'phoneNumber name');
     if (!device) {
       return { success: false, message: 'Device not found' };
     }
 
+    if (isAdmin) {
+      const owners = device.owner
+        .filter((entry) => entry.userId)
+        .map((entry) => ({
+          userId: entry.userId._id,
+          phoneNumber: entry.userId.phoneNumber,
+          name: entry.userId.name || null,
+        }));
+
+      return { success: true, owners };
+    }
+
+    const isLinked = device.owner.some((entry) => entry.userId && entry.userId._id.toString() === currentUserId);
+    if (!isLinked) {
+      return { success: false, message: 'Access denied: you are not linked to this device' };
+    }
+
     const owners = device.owner
-      .filter((entry) => entry.userId) // prevent undefined
+      .filter((entry) => {
+        const addedBy = entry.addedBy?.toString?.();
+        const userId = entry.userId?._id?.toString?.();
+        return userId === currentUserId || addedBy === currentUserId;
+      })
       .map((entry) => ({
         userId: entry.userId._id,
         phoneNumber: entry.userId.phoneNumber,
         name: entry.userId.name || null,
       }));
 
-    return {
-      success: true,
-      owners,
-    };
+    return { success: true, owners };
   } catch (error) {
     console.error('Error fetching device owners:', error);
     return {
