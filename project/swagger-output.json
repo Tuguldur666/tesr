@@ -792,23 +792,6 @@
         }
       }
     },
-    "/mqtt/getAllDevices": {
-      "get": {
-        "tags": [
-          "MQTT"
-        ],
-        "summary": "Get all currently connected devices",
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
     "/device/getDevices": {
       "get": {
         "tags": [

@@ -35,7 +35,6 @@ router.put('/update', mqttController.updateAutomationRuleById);
 router.get('/getRule', mqttController.getAutomationRulesByClientId);
 router.delete('/delete', mqttController.deleteAutomationRuleById);
 router.get('/powerlogs', mqttController.getPowerLogs);
-router.get('/getAllDevices', mqttController.getConnectedDevices);
 
 
 

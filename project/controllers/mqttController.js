@@ -1,17 +1,6 @@
 const mqttService = require('../services/mqttServices');
 
-exports.getConnectedDevices = async (req, res) => {
-  /*
-    #swagger.tags = ['MQTT']
-    #swagger.summary = 'Get all currently connected devices'
-  */
-  try {
-    const result = await mqttService.getConnectedDevices();
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Unexpected error', error: err.message });
-  }
-};
+
 
 //////////////////////////////////////////////////
 exports.getLatestData = async (req, res) => {
