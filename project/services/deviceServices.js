@@ -126,6 +126,7 @@ async function getDevices(accessToken) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
+
 async function removeUserFromDevice(id, phoneNumber, accessToken) {
   try {
     if (!accessToken) {
@@ -139,9 +140,9 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
     if (!decoded || !decoded.userId) {
       return { success: false, message: 'Invalid access token' };
     }
+
     const requestingUserId = decoded.userId;
     const isAdmin = decoded.isAdmin === true;
-
     const normalizedPhone = phoneNumber.toString().trim();
 
     const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
@@ -162,22 +163,44 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
       return { success: false, message: 'User is not linked to this device' };
     }
 
-    if (!isAdmin && ownerEntry.addedBy.toString() !== requestingUserId) {
+    if (
+      !isAdmin &&
+      ownerEntry.addedBy?.toString() !== requestingUserId &&
+      ownerEntry.userId.toString() !== requestingUserId
+    ) {
       return {
         success: false,
-        message: 'Access denied: you can only remove users you added',
+        message: 'Access denied: you can only remove yourself and users you added',
       };
     }
 
+    const toRemove = new Set();
+    const queue = [existingUser._id.toString()];
+
+    while (queue.length > 0) {
+      const currentUserId = queue.shift();
+      toRemove.add(currentUserId);
+
+      device.owner.forEach((entry) => {
+        if (
+          entry.addedBy?.toString() === currentUserId &&
+          !toRemove.has(entry.userId.toString())
+        ) {
+          queue.push(entry.userId.toString());
+        }
+      });
+    }
+
     device.owner = device.owner.filter(
-      (o) => o.userId.toString() !== existingUser._id.toString()
+      (entry) => !toRemove.has(entry.userId.toString())
     );
 
     const updatedDevice = await device.save();
 
     return {
       success: true,
-      message: `User removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
+      message: `User and all users added by them have been removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
+      removedUserIds: Array.from(toRemove),
       device: updatedDevice,
     };
 
