@@ -188,7 +188,7 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
   /*
     #swagger.tags = ['Devices']
     #swagger.summary = 'Get phone numbers of users belonging to a device'
-        #swagger.parameters['Authorization'] = {
+    #swagger.parameters['Authorization'] = {
       in: 'header',
       name: 'Authorization',
       required: true,
@@ -196,7 +196,7 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
       type: 'string',
       example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
     }
-    #swagger.parameters['deviceId'] = {
+    #swagger.parameters['body'] = {
       in: 'body',
       description: 'ID of the device',
       required: true,
