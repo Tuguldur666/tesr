@@ -55,7 +55,6 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
     const userIdFromToken = decoded.userId;
 
     const normalizedPhone = phoneNumber.trim();
-
     const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
     if (!existingUser) {
       return { success: false, message: 'User does not exist' };
@@ -67,8 +66,7 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
     }
 
     const isAlreadyOwner = device.owner.some(
-      (entry) =>
-        entry.userId?.toString?.() === existingUser._id.toString()
+      (entry) => entry.userId?.toString?.() === existingUser._id.toString()
     );
 
     if (isAlreadyOwner) {
@@ -79,12 +77,23 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
       };
     }
 
+    const isRequestingUserOwner = device.owner.some(
+      (entry) => entry.userId?.toString?.() === userIdFromToken
+    );
+
+    if (!isRequestingUserOwner) {
+      return {
+        success: false,
+        message: 'You are not authorized to add users to this device',
+      };
+    }
+
     device.owner.push({
       userId: existingUser._id,
       addedBy: userIdFromToken,
     });
 
-    const updatedDevice = await device.save(); 
+    const updatedDevice = await device.save();
 
     return {
       success: true,
@@ -132,7 +141,7 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
     const requestingUserId = decoded.userId;
     const isAdmin = decoded.isAdmin === true;
 
-    const normalizedPhone = phoneNumber.trim();
+    const normalizedPhone = phoneNumber.toString().trim();
 
     const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
     if (!existingUser) {
