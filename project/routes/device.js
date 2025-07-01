@@ -9,7 +9,7 @@ router.get('/getDevices', deviceController.getDevices);
 router.post('/getOwners', deviceController.getDeviceOwnersPhoneNumbers);
 //////////////////////////////////////////////////////////////////
 router.post('/addUserToDevice', deviceController.addUserToDevice);
-//////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 router.post('/removeUserFromDevice', deviceController.removeUserFromDevice);
 
 module.exports = router;
