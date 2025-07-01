@@ -154,7 +154,8 @@ exports.removeUserFromDevice = async (req, res) => {
       in: 'body',
       required: true,
       schema: {
-        id: "DEVICE_OBJECT_ID"
+        id: "DEVICE_OBJECT_ID",
+        phoneNumber: 99881175
       }
     }
   */
@@ -166,13 +167,13 @@ exports.removeUserFromDevice = async (req, res) => {
     }
 
     const accessToken = authHeader.split(' ')[1];
-    const { id } = req.body;
+    const { id, phoneNumber } = req.body;
 
-    if (!id ) {
+    if (!id || !phoneNumber) {
       return res.status(422).json({ success: false, message: 'Device ID and phone number are required' });
     }
 
-    const result = await deviceService.removeUserFromDevice(id, accessToken);
+    const result = await deviceService.removeUserFromDevice(id, phoneNumber, accessToken);
 
     return res.status(result.success ? 200 : 400).json(result);
 
@@ -187,14 +188,6 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
   /*
     #swagger.tags = ['Devices']
     #swagger.summary = 'Get phone numbers of users belonging to a device'
-    #swagger.parameters['Authorization'] = {
-      in: 'header',
-      name: 'Authorization',
-      required: true,
-      description: 'Bearer access token',
-      type: 'string',
-      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-    }
     #swagger.parameters['deviceId'] = {
       in: 'body',
       description: 'ID of the device',
@@ -204,19 +197,13 @@ exports.getDeviceOwnersPhoneNumbers = async (req, res) => {
   */
 
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Access token required' });
-    }
-
-    const accessToken = authHeader.split(' ')[1];
     const { deviceId } = req.body;
 
     if (!deviceId) {
       return res.status(400).json({ success: false, message: 'Device ID is required' });
     }
 
-    const result = await deviceService.getDeviceOwnersPhoneNumbers(deviceId , accessToken);
+    const result = await deviceService.getDeviceOwnersPhoneNumbers(deviceId);
 
     if (!result.success) {
       return res.status(404).json({ success: false, message: result.message });

@@ -126,47 +126,61 @@ async function getDevices(accessToken) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-async function removeUserFromDevice(Id, accessToken) {
+async function removeUserFromDevice(id, phoneNumber, accessToken) {
   try {
     if (!accessToken) {
       return { success: false, message: 'Access token is required' };
+    }
+    if (!phoneNumber) {
+      return { success: false, message: 'Phone number is required' };
     }
 
     const decoded = verifyToken(accessToken);
     if (!decoded || !decoded.userId) {
       return { success: false, message: 'Invalid access token' };
     }
+    const requestingUserId = decoded.userId;
+    const isAdmin = decoded.isAdmin === true;
 
-    const userId = decoded.userId;
+    const normalizedPhone = phoneNumber.toString().trim();
 
-    const device = await Device.findById(Id);
+    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+    if (!existingUser) {
+      return { success: false, message: 'User does not exist' };
+    }
+
+    const device = await Device.findById(id);
     if (!device) {
       return { success: false, message: 'Device does not exist' };
     }
 
-    const isLinkedToDevice = device.owner.some(
-      (entry) =>
-        entry.userId.toString() === userId || entry.addedBy?.toString() === userId
+    const ownerEntry = device.owner.find(
+      (o) => o.userId.toString() === existingUser._id.toString()
     );
 
-    if (!isLinkedToDevice) {
+    if (!ownerEntry) {
+      return { success: false, message: 'User is not linked to this device' };
+    }
+
+    if (!isAdmin && ownerEntry.addedBy.toString() !== requestingUserId) {
       return {
         success: false,
-        message: 'You are not linked to this device as owner or adder',
+        message: 'Access denied: you can only remove users you added',
       };
     }
 
     device.owner = device.owner.filter(
-      (entry) => entry.userId.toString() !== userId
+      (o) => o.userId.toString() !== existingUser._id.toString()
     );
 
     const updatedDevice = await device.save();
 
     return {
       success: true,
-      message: `You have been removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
+      message: `User removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
       device: updatedDevice,
     };
+
   } catch (error) {
     console.error('Error removing user from device:', error);
     return {
