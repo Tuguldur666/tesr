@@ -181,11 +181,11 @@ exports.updateUsername = async (req, res) => {
   const accessToken = authHeader.split(' ')[1];
 
   try {
-    const result = await userService.updateUsername({ accessToken, newName });
+    const result = await service.updateUsername({ accessToken, newName });
     return res.status(result.status || 200).json(result);
   } catch (err) {
     console.error('Error in updateUsername controller:', err);
-    return res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
+    return res.status(503).json({ success: false, message: 'Service temporarily unavailable' , error: err.message});
   }
 };
 
