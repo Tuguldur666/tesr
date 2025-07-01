@@ -2,6 +2,7 @@ const User = require('../models/user');
 const Device = require('../models/Device');
 const otp = require('./otpServices');
 const jwt = require('jsonwebtoken');
+const { verifyToken } = require('../utils/token'); 
 
 
 async function registerUser({ name, phoneNumber, password }) {
