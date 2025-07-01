@@ -841,14 +841,6 @@
         "description": "",
         "parameters": [
           {
-            "name": "Authorization",
-            "in": "header",
-            "required": true,
-            "description": "Bearer access token",
-            "type": "string",
-            "example": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-          },
-          {
             "name": "deviceId",
             "in": "body",
             "description": "ID of the device",
@@ -862,11 +854,6 @@
                 }
               }
             }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
           }
         ],
         "responses": {
@@ -875,9 +862,6 @@
           },
           "400": {
             "description": "Bad Request"
-          },
-          "401": {
-            "description": "Unauthorized"
           },
           "404": {
             "description": "Not Found"
@@ -973,6 +957,10 @@
                 "id": {
                   "type": "string",
                   "example": "DEVICE_OBJECT_ID"
+                },
+                "phoneNumber": {
+                  "type": "number",
+                  "example": 99881175
                 }
               }
             }
