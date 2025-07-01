@@ -107,7 +107,9 @@ async function getDevices(accessToken) {
   const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
-  const query = isAdmin ? {} : { owner: userId };
+  const query = isAdmin
+    ? {}
+    : { "owner.userId": new mongoose.Types.ObjectId(userId) }; 
 
   const devices = await Device.find(query);
   return { success: true, devices };
