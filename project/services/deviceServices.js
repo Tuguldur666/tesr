@@ -39,7 +39,7 @@ async function registerDevice(clientId, entity, type) {
 
 /////////////////////////////////////////////////////////////////////////
 
-async function addDeviceToUser(id, phoneNumber, accessToken) {
+async function addDeviceToUser(id, phoneNumber,customName, accessToken) {
   try {
     if (!phoneNumber) {
       return { success: false, message: 'Phone number is required' };
@@ -91,6 +91,7 @@ async function addDeviceToUser(id, phoneNumber, accessToken) {
     device.owner.push({
       userId: existingUser._id,
       addedBy: userIdFromToken,
+      name: customName,
     });
 
     const updatedDevice = await device.save();

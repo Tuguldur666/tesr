@@ -103,6 +103,7 @@ exports.addUserToDevice = async (req, res) => {
       schema: {
         id: "DEVICE_OBJECT_ID",
         phoneNumber: 99881175
+        name : "Custom name"
       }
     }
   */
@@ -114,13 +115,13 @@ exports.addUserToDevice = async (req, res) => {
     }
 
     const accessToken = authHeader.split(' ')[1];
-    const { id, phoneNumber } = req.body;
+    const { id, phoneNumber, name } = req.body;
 
-    if (!id || !phoneNumber) {
+    if (!id || !phoneNumber || !name) {
       return res.status(422).json({ success: false, message: 'Missing device ID or phone number' });
     }
 
-    const result = await deviceService.addDeviceToUser(id, phoneNumber.toString(), accessToken);
+    const result = await deviceService.addDeviceToUser(id, phoneNumber.toString(),name, accessToken);
 
 
     return res.status(result.success ? 200 : 400).json(result);
