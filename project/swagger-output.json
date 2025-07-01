@@ -973,10 +973,6 @@
                 "id": {
                   "type": "string",
                   "example": "DEVICE_OBJECT_ID"
-                },
-                "phoneNumber": {
-                  "type": "number",
-                  "example": 99881175
                 }
               }
             }

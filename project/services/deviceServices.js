@@ -126,61 +126,47 @@ async function getDevices(accessToken) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-async function removeUserFromDevice(id, phoneNumber, accessToken) {
+async function removeUserFromDevice(Id, accessToken) {
   try {
     if (!accessToken) {
       return { success: false, message: 'Access token is required' };
-    }
-    if (!phoneNumber) {
-      return { success: false, message: 'Phone number is required' };
     }
 
     const decoded = verifyToken(accessToken);
     if (!decoded || !decoded.userId) {
       return { success: false, message: 'Invalid access token' };
     }
-    const requestingUserId = decoded.userId;
-    const isAdmin = decoded.isAdmin === true;
 
-    const normalizedPhone = phoneNumber.toString().trim();
+    const userId = decoded.userId;
 
-    const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
-    if (!existingUser) {
-      return { success: false, message: 'User does not exist' };
-    }
-
-    const device = await Device.findById(id);
+    const device = await Device.findById(Id);
     if (!device) {
       return { success: false, message: 'Device does not exist' };
     }
 
-    const ownerEntry = device.owner.find(
-      (o) => o.userId.toString() === existingUser._id.toString()
+    const isLinkedToDevice = device.owner.some(
+      (entry) =>
+        entry.userId.toString() === userId || entry.addedBy?.toString() === userId
     );
 
-    if (!ownerEntry) {
-      return { success: false, message: 'User is not linked to this device' };
-    }
-
-    if (!isAdmin && ownerEntry.addedBy.toString() !== requestingUserId) {
+    if (!isLinkedToDevice) {
       return {
         success: false,
-        message: 'Access denied: you can only remove users you added',
+        message: 'You are not linked to this device as owner or adder',
       };
     }
 
     device.owner = device.owner.filter(
-      (o) => o.userId.toString() !== existingUser._id.toString()
+      (entry) => entry.userId.toString() !== userId
     );
 
     const updatedDevice = await device.save();
 
     return {
       success: true,
-      message: `User removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
+      message: `You have been removed from device "${updatedDevice.clientId}, ${updatedDevice.entity}" successfully.`,
       device: updatedDevice,
     };
-
   } catch (error) {
     console.error('Error removing user from device:', error);
     return {
@@ -196,7 +182,7 @@ async function removeUserFromDevice(id, phoneNumber, accessToken) {
 
 async function getDeviceOwnersPhoneNumbers(deviceId, accessToken) {
   try {
-    // Verify token
+
     const decoded = verifyToken(accessToken);
     if (!decoded || !decoded.userId) {
       return { success: false, message: 'Invalid or missing access token' };
@@ -209,7 +195,6 @@ async function getDeviceOwnersPhoneNumbers(deviceId, accessToken) {
       return { success: false, message: 'Invalid device ID format' };
     }
 
-    // Fetch and populate owner.userId
     const device = await Device.findById(deviceId).populate('owner.userId', 'phoneNumber name');
     if (!device) {
       return { success: false, message: 'Device not found' };

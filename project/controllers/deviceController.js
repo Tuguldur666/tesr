@@ -154,8 +154,7 @@ exports.removeUserFromDevice = async (req, res) => {
       in: 'body',
       required: true,
       schema: {
-        id: "DEVICE_OBJECT_ID",
-        phoneNumber: 99881175
+        id: "DEVICE_OBJECT_ID"
       }
     }
   */
@@ -167,13 +166,13 @@ exports.removeUserFromDevice = async (req, res) => {
     }
 
     const accessToken = authHeader.split(' ')[1];
-    const { id, phoneNumber } = req.body;
+    const { id } = req.body;
 
-    if (!id || !phoneNumber) {
+    if (!id ) {
       return res.status(422).json({ success: false, message: 'Device ID and phone number are required' });
     }
 
-    const result = await deviceService.removeUserFromDevice(id, phoneNumber, accessToken);
+    const result = await deviceService.removeUserFromDevice(id, accessToken);
 
     return res.status(result.success ? 200 : 400).json(result);
 
