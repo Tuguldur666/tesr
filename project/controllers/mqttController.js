@@ -159,11 +159,13 @@ exports.updateAutomationRuleById = async (req, res) => {
 exports.getAutomationRulesByDeviceId = async (req, res) => {
   /*
     #swagger.tags = ['Get automation']
-    #swagger.parameters['query'] = {
-      deviceId: " "
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      type: 'string'
     }
   */
-  const { deviceId } = req.query;
+  const { deviceId } = req.body;
 
   if (!deviceId) {
     return res.status(400).json({ success: false, message: 'Missing deviceId' });
@@ -176,6 +178,7 @@ exports.getAutomationRulesByDeviceId = async (req, res) => {
     res.status(503).json({ success: false, message: 'Service error', error: err.message });
   }
 };
+
 
 ///////////////////////////////////////////////////////////
 

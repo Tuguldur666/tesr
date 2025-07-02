@@ -677,28 +677,24 @@
       }
     },
     "/mqtt/getRule": {
-      "get": {
+      "post": {
         "tags": [
           "Get automation"
         ],
         "description": "",
         "parameters": [
           {
-            "name": "query",
-            "clientId": " ",
-            "entity": " ",
-            "in": "query",
-            "type": "string"
-          },
-          {
-            "name": "clientId",
-            "in": "query",
-            "type": "string"
-          },
-          {
-            "name": "entity",
-            "in": "query",
-            "type": "string"
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deviceId": {
+                  "example": "any"
+                }
+              }
+            },
+            "required": true
           }
         ],
         "responses": {
