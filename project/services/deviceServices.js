@@ -39,7 +39,7 @@ async function registerDevice(clientId, entity, type) {
 
 /////////////////////////////////////////////////////////////////////////
 
-async function addDeviceToUser(id, phoneNumber,customName, accessToken) {
+async function addDeviceToUser(id, phoneNumber, customName, accessToken) {
   try {
     if (!phoneNumber) {
       return { success: false, message: 'Phone number is required' };
@@ -53,6 +53,11 @@ async function addDeviceToUser(id, phoneNumber,customName, accessToken) {
       return { success: false, message: 'Invalid access token' };
     }
     const userIdFromToken = decoded.userId;
+
+    const requestingUser = await User.findById(userIdFromToken);
+    if (!requestingUser) {
+      return { success: false, message: 'Requesting user not found' };
+    }
 
     const normalizedPhone = phoneNumber.trim();
     const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
@@ -81,7 +86,7 @@ async function addDeviceToUser(id, phoneNumber,customName, accessToken) {
       (entry) => entry.userId?.toString?.() === userIdFromToken
     );
 
-    if (!isRequestingUserOwner) {
+    if (!isRequestingUserOwner && !requestingUser.isAdmin) {
       return {
         success: false,
         message: 'You are not authorized to add users to this device',
