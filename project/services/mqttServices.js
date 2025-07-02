@@ -429,11 +429,7 @@ cron.schedule('* * * * *', async () => {
       if (time === rule.onTime || time === rule.offTime) {
         const device = await Device.findById(rule.deviceId);
         if (!device) continue;
-
-        const action = time === rule.onTime ? 'ON' : 'OFF';
-        const topic = `cmnd/${device.clientId}/POWER`;
-
-        await sendCommand(device.clientId, device.entity || 'main', action); 
+        await sendCommand(device.clientId, device.entity ); 
         await logAutomationExecution({
           ruleId: rule._id,
           action,
