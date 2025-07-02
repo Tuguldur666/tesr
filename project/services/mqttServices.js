@@ -378,8 +378,8 @@ async function updateAutomationRuleById(ruleId, updateData) {
 
 /////////////////////////////////////////////////////////////////
 
-async function getAutomationRulesByClientId(clientId, entity) {
-  const rules = await Automation.find({ clientId, entity });
+async function getAutomationRulesByDeviceId(deviceId) {
+  const rules = await Automation.find({ deviceId });
   return { success: true, count: rules.length, rules };
 }
 
@@ -453,7 +453,7 @@ module.exports = {
   sendCommand,
   setAutomationRule,
   updateAutomationRuleById,
-  getAutomationRulesByClientId,
+  getAutomationRulesByDeviceId,
   deleteAutomationRuleById,
   getPowerLogs,
   getConnectedDevices,

@@ -32,7 +32,7 @@ router.post('/data', mqttController.getLatestData);
 router.post('/toggle', mqttController.sendCommand);
 router.post('/automation', mqttController.setAutomation);
 router.put('/update', mqttController.updateAutomationRuleById);
-router.get('/getRule', mqttController.getAutomationRulesByClientId);
+router.get('/getRule', mqttController.getAutomationRulesByDeviceId);
 router.delete('/delete', mqttController.deleteAutomationRuleById);
 router.get('/powerlogs', mqttController.getPowerLogs);
 

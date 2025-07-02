@@ -156,22 +156,21 @@ exports.updateAutomationRuleById = async (req, res) => {
 
 //////////////////////////////////////////////////////////////
 
-exports.getAutomationRulesByClientId = async (req, res) => {
+exports.getAutomationRulesByDeviceId = async (req, res) => {
   /*
     #swagger.tags = ['Get automation']
     #swagger.parameters['query'] = {
-      clientId: " ",
-      entity: " "
+      deviceId: " "
     }
   */
-  const { clientId, entity } = req.query;
+  const { deviceId } = req.query;
 
-  if (!clientId) {
-    return res.status(400).json({ success: false, message: 'Missing clientId' });
+  if (!deviceId) {
+    return res.status(400).json({ success: false, message: 'Missing deviceId' });
   }
 
   try {
-    const rules = await mqttService.getAutomationRulesByClientId(clientId, entity);
+    const rules = await mqttService.getAutomationRulesByDeviceId(deviceId);
     res.status(200).json({ success: true, count: rules.length, rules });
   } catch (err) {
     res.status(503).json({ success: false, message: 'Service error', error: err.message });
