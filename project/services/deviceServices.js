@@ -122,12 +122,35 @@ async function getDevices(accessToken) {
   const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
-  const query = isAdmin
-    ? {}
-    : { "owner.userId": new mongoose.Types.ObjectId(userId) }; 
+  try {
+    let query = {};
 
-  const devices = await Device.find(query);
-  return { success: true, devices };
+    if (!isAdmin) {
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+
+      query = {
+        $or: [
+          { "owner.userId": userObjectId },
+          { addedBy: userObjectId }
+        ]
+      };
+    }
+
+    const devices = await Device.find(query).lean(); 
+
+    if (!isAdmin) {
+      devices.forEach(device => {
+        device.owner = device.owner.filter(owner =>
+          owner.userId.toString() === userId || owner.addedBy.toString() === userId
+        );
+      });
+    }
+
+    return { success: true, devices };
+  } catch (err) {
+    console.error('Error fetching devices:', err.message);
+    return { success: false, message: 'Failed to fetch devices' };
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////
