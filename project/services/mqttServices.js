@@ -322,26 +322,29 @@ async function sendCommand(clientId, entity) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 async function setAutomationRule(accessToken, deviceId, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
+  if (!mongoose.Types.ObjectId.isValid(deviceId)) {
+    return { success: false, message: 'Invalid deviceId format' };
+  }
+
   try {
     const query = isAdmin
-      ? { _id: new mongoose.Types.ObjectId(deviceId) }
+      ? { _id: deviceId }
       : {
-          _id: new mongoose.Types.ObjectId(deviceId),
+          _id: deviceId,
           owner: {
             $elemMatch: {
-              userId: new mongoose.Types.ObjectId(userId),
+              userId,
             },
           },
         };
 
     const device = await Device.findOne(query);
-    if (!device) {
-      return { success: false, message: 'Device not found or access denied' };
-    }
+    if (!device) return { success: false, message: 'Device not found or access denied' };
 
     const rule = await Automation.create({
       deviceId,
@@ -358,7 +361,6 @@ async function setAutomationRule(accessToken, deviceId, onTime, offTime, timezon
     return { success: false, message: err.message };
   }
 }
-
 
 //////////////////////////////////////////////////////////////
 
