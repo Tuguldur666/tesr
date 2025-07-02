@@ -579,11 +579,7 @@
             "schema": {
               "type": "object",
               "properties": {
-                "clientId": {
-                  "type": "string",
-                  "example": " "
-                },
-                "entity": {
+                "deviceId": {
                   "type": "string",
                   "example": " "
                 },

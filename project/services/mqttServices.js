@@ -24,6 +24,8 @@ const recentAutomationLogs = new Map();
 let powerLogCallCount = 0;
 let teleSensorDebounceTimer = null;
 
+////////////////////////////////////
+
 async function ensureIndexes() {
   try {
     await PowerLog.collection.createIndex({ clientId: 1, power: 1, timestamp: -1 });
@@ -34,6 +36,8 @@ async function ensureIndexes() {
 }
 ensureIndexes();
 
+////////////////////////////////////////////////////////////////////////
+
 function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
   axios.post(`http://192.168.1.168:3001/${endpoint}`, payload, {
     headers: { 'Content-Type': 'application/json' },
@@ -43,6 +47,8 @@ function sendHttpEvent(endpoint, payload = { status: 'Connected' }) {
     console.error(`❌ Failed to send ${endpoint}:`, err.message);
   });
 }
+
+///////////////////////////////////////////////////////////////////
 
 async function logDeviceStatus(clientId, entity, power, status) {
   try {
@@ -56,6 +62,8 @@ async function logDeviceStatus(clientId, entity, power, status) {
     console.error(`❌ Failed to update device status for ${clientId}:${entity}:`, err.message);
   }
 }
+
+///////////////////////////////////////////////////////////////
 
 async function logPowerStatus({ clientId, entity, power }) {
   powerLogCallCount++;
@@ -80,6 +88,8 @@ async function logPowerStatus({ clientId, entity, power }) {
   }
 }
 
+///////////////////////////////////////////////////////////
+
 async function logAutomationExecution({ ruleId, action }) {
   const key = `${ruleId}_${action}`;
   const now = Date.now();
@@ -99,6 +109,8 @@ async function logAutomationExecution({ ruleId, action }) {
   }
 }
 
+//////////////////////////////////////
+
 function subscribeToTopic(topic) {
   if (subscribedDevices.has(topic)) return;
   client.subscribe(topic, (err) => {
@@ -111,6 +123,8 @@ function subscribeToTopic(topic) {
   });
 }
 
+//////////////////////////////////
+
 client.on('connect', () => {
   sendHttpEvent('connection');
   console.log('MQTT connected');
@@ -118,6 +132,8 @@ client.on('connect', () => {
   ['tele/+/STATE', 'tele/+/LWT', 'tele/+/SENSOR', 'stat/+/RESULT', 'stat/+/POWER']
     .forEach(subscribeToTopic);
 });
+
+/////////////////////////////////////////////////////////
 
 client.on('message', async (topic, message, packet) => {
   const msgStr = message.toString();
@@ -192,6 +208,9 @@ client.on('message', async (topic, message, packet) => {
   }
 });
 
+////////////////////////////////////////////////////////////
+
+
 async function getConnectedDevices() {
   const connected = Array.from(connectedClients.entries());
   const devices = [];
@@ -213,6 +232,9 @@ async function getConnectedDevices() {
 
   return { success: true, count: devices.length, devices };
 }
+
+////////////////////////////////////////////
+
 
 cron.schedule('*/5 * * * *', async () => {
   try {
@@ -297,22 +319,21 @@ async function sendCommand(clientId, entity) {
   }
 }
 
-async function setAutomationRule(accessToken, clientId, entity, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+async function setAutomationRule(accessToken, deviceId, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
   const { userId, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
   try {
-    const device = await Device.findOne({ clientId, entity, owner: userId });
+    const device = await Device.findOne({ _id: deviceId, 'owner.userId': userId });
     if (!device) return { success: false, message: 'Device not found or access denied' };
 
     const rule = await Automation.create({
-      clientId,
-      entity,
-      topic: `cmnd/${clientId}/POWER`,
+      deviceId,
       onTime,
       offTime,
       timezone,
-      owner: userId
     });
 
     return { success: true, message: 'Rule created', rule };
@@ -321,6 +342,8 @@ async function setAutomationRule(accessToken, clientId, entity, onTime, offTime,
     return { success: false, message: err.message };
   }
 }
+
+//////////////////////////////////////////////////////////////
 
 async function updateAutomationRuleById(ruleId, updateData) {
   const { onTime, offTime, timezone } = updateData;
@@ -334,16 +357,22 @@ async function updateAutomationRuleById(ruleId, updateData) {
   }
 }
 
+/////////////////////////////////////////////////////////////////
+
 async function getAutomationRulesByClientId(clientId, entity) {
   const rules = await Automation.find({ clientId, entity });
   return { success: true, count: rules.length, rules };
 }
+
+///////////////////////////////////////////////////////////////////
 
 async function deleteAutomationRuleById(ruleId) {
   const deleted = await Automation.findByIdAndDelete(ruleId);
   if (!deleted) return { success: false, message: 'Rule not found' };
   return { success: true, message: 'Rule deleted' };
 }
+
+////////////////////////////////////////////////////////
 
 async function getPowerLogs(accessToken) {
   const { userId, error } = verifyToken(accessToken);
@@ -355,32 +384,37 @@ async function getPowerLogs(accessToken) {
   return { success: true, count: logs.length, logs };
 }
 
+////////////////////////////////////////////////////
+
 cron.schedule('* * * * *', async () => {
   try {
     const nowUtc = moment.utc();
-    const automations = await Automation.find({});
-    const executionCache = new Set();
+    const automations = await Automation.find({ enabled: true });
 
     for (const rule of automations) {
-      const cacheKey = `${rule._id}_${nowUtc.format('HH:mm')}`;
-      if (executionCache.has(cacheKey)) continue;
-
-      const now = nowUtc.clone().tz(rule.timezone);
+      const now = nowUtc.clone().tz(rule.timezone || 'Asia/Ulaanbaatar');
       const time = now.format('HH:mm');
 
       if (time === rule.onTime || time === rule.offTime) {
-        await sendCommand(rule.clientId, rule.entity);
-        await logAutomationExecution({ 
-          ruleId: rule._id, 
-          action: time === rule.onTime ? 'ON' : 'OFF' 
+        const device = await Device.findById(rule.deviceId);
+        if (!device) continue;
+
+        const action = time === rule.onTime ? 'ON' : 'OFF';
+        const topic = `cmnd/${device.clientId}/POWER`;
+
+        await sendCommand(device.clientId, device.entity || 'main', action); 
+        await logAutomationExecution({
+          ruleId: rule._id,
+          action,
         });
-        executionCache.add(cacheKey);
       }
     }
   } catch (err) {
     console.error('❌ Error running automation cron:', err.message);
   }
 });
+
+/////////////////////
 
 module.exports = {
   subscribeToTopic,

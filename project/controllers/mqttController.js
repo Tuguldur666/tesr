@@ -79,8 +79,7 @@ exports.setAutomation = async (req, res) => {
       in: 'body',
       required: true,
       schema: {
-        clientId: " ",
-        entity: " ",
+        deviceId: " ",
         onTime: " ",
         offTime: " ",
         timezone : "Asia/Ulaanbaatar"
@@ -95,19 +94,18 @@ exports.setAutomation = async (req, res) => {
   const accessToken = authHeader.split(' ')[1];
 
   const {
-    clientId,
-    entity,
+    deviceId,
     onTime,
     offTime,
     timezone = 'Asia/Ulaanbaatar',
   } = req.body;
 
-  if (!accessToken || !clientId || !entity || !onTime || !offTime) {
+  if (!accessToken || !deviceId || !onTime || !offTime) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
   try {
-    const result = await mqttService.setAutomationRule(accessToken, clientId, entity, onTime, offTime, timezone);
+    const result = await mqttService.setAutomationRule(accessToken, deviceId , onTime, offTime, timezone);
     res.status(result.success ? 201 : 409).json(result);
   } catch (error) {
     res.status(503).json({ success: false, message: error.message });
