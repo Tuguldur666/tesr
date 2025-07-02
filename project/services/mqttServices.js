@@ -10,6 +10,7 @@ const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { verifyToken } = require('../utils/token');
 const { registerDevice } = require('../services/deviceServices');
+const mongoose = require('mongoose'); 
 
 const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
   username: process.env.MQTT_USER,
@@ -375,12 +376,24 @@ async function deleteAutomationRuleById(ruleId) {
 ////////////////////////////////////////////////////////
 
 async function getPowerLogs(accessToken) {
-  const { userId, error } = verifyToken(accessToken);
+  const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
-  const devices = await Device.find({ owner: userId });
+
+  let devices;
+
+  if (isAdmin) {
+    devices = await Device.find(); // Admin sees all devices
+  } else {
+    devices = await Device.find({ 'owner.userId': new mongoose.Types.ObjectId(userId) });
+  }
+
   const clientIds = devices.map((d) => d.clientId);
   if (clientIds.length === 0) return { success: true, count: 0, logs: [] };
-  const logs = await PowerLog.find({ clientId: { $in: clientIds } }).sort({ _id: -1 }).limit(100);
+
+  const logs = await PowerLog.find({ clientId: { $in: clientIds } })
+    .sort({ _id: -1 })
+    .limit(100);
+
   return { success: true, count: logs.length, logs };
 }
 
