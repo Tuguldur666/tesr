@@ -323,12 +323,25 @@ async function sendCommand(clientId, entity) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 async function setAutomationRule(accessToken, deviceId, onTime, offTime, timezone = 'Asia/Ulaanbaatar') {
-  const { userId, error } = verifyToken(accessToken);
+  const { userId, isAdmin, error } = verifyToken(accessToken);
   if (error) return { success: false, message: error };
 
   try {
-    const device = await Device.findOne({ _id: deviceId, 'owner.userId': userId });
-    if (!device) return { success: false, message: 'Device not found or access denied' };
+    const query = isAdmin
+      ? { _id: new mongoose.Types.ObjectId(deviceId) }
+      : {
+          _id: new mongoose.Types.ObjectId(deviceId),
+          owner: {
+            $elemMatch: {
+              userId: new mongoose.Types.ObjectId(userId),
+            },
+          },
+        };
+
+    const device = await Device.findOne(query);
+    if (!device) {
+      return { success: false, message: 'Device not found or access denied' };
+    }
 
     const rule = await Automation.create({
       deviceId,
@@ -339,10 +352,13 @@ async function setAutomationRule(accessToken, deviceId, onTime, offTime, timezon
 
     return { success: true, message: 'Rule created', rule };
   } catch (err) {
-    if (err.code === 11000) return { success: false, message: 'Duplicate time rule' };
+    if (err.code === 11000) {
+      return { success: false, message: 'Duplicate time rule' };
+    }
     return { success: false, message: err.message };
   }
 }
+
 
 //////////////////////////////////////////////////////////////
 
