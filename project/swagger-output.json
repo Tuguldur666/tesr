@@ -374,11 +374,11 @@
               "properties": {
                 "otp": {
                   "type": "string",
-                  "example": " "
+                  "example": "123456"
                 },
                 "newPhoneNumber": {
                   "type": "string",
-                  "example": " "
+                  "example": "+1234567890"
                 }
               }
             }
@@ -392,6 +392,9 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "401": {
             "description": "Unauthorized"

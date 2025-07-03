@@ -317,9 +317,8 @@ exports.verifyCurrentNumberAndSendOtpToNew = async (req, res) => {
 
 ////////////////////////////////////////////////////////////////
 
-exports.confirmNewPhoneNumber = async(req, res) => 
-{
-      /*
+exports.confirmNewPhoneNumber = async (req, res) => {
+  /*
     #swagger.tags = ['Users']
     #swagger.summary = 'Update current phone number'
     #swagger.description = 'Updates the phone number.'
@@ -331,19 +330,18 @@ exports.confirmNewPhoneNumber = async(req, res) =>
       type: 'string',
       example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
     }
-      #swagger.parameters['body'] = {
+    #swagger.parameters['body'] = {
       in: 'body',
       required: true,
       schema: {
-        otp: " ",
-        newPhoneNumber: " "
+        otp: "123456",
+        newPhoneNumber: "+1234567890"
       }
     }
-
   */
 
   const authHeader = req.headers.authorization;
-  const { otp , newPhoneNumber } = req.body;
+  const { otp, newPhoneNumber } = req.body;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, message: 'Access token required' });
@@ -356,14 +354,19 @@ exports.confirmNewPhoneNumber = async(req, res) =>
   const accessToken = authHeader.split(' ')[1];
 
   try {
-    const result = await service.confirmNewPhoneNumber({ accessToken, newPhoneNumber , otp });
-    return res.status(result.status || 200).json(result);
+    const result = await service.confirmNewPhoneNumber(accessToken, newPhoneNumber, otp);
+
+    return res.status(result.status || (result.success ? 200 : 400)).json(result);
   } catch (err) {
     console.error('Error in confirm new number controller:', err);
-    return res.status(503).json({ success: false, message: 'Service temporarily unavailable' , error: err.message});
+    return res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable',
+      error: err.message
+    });
   }
+};
 
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 

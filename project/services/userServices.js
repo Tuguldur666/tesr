@@ -250,10 +250,11 @@ async function verifyCurrentNumberAndSendOtpToNew(accessToken, enteredOtp, newPh
 }
 /////////////////////////////////////////////////////////////////////////////////
 async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
-  const { userId, error } = verifyToken(accessToken);
-  if (error) return { success: false, message: 'Invalid access token' };
-
-  const user = await User.findById(userId);
+   const decoded = verifyToken(accessToken);
+    if (!decoded || !decoded.userId) {
+      return { success: false, message: 'Invalid access token' };
+    }
+  const user = await User.findById(decoded.userId);
   if (!user) return { success: false, message: 'User not found' };
 
   const existing = await User.findOne({
