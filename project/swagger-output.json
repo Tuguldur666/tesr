@@ -315,11 +315,11 @@
               "properties": {
                 "otp": {
                   "type": "string",
-                  "example": "123456"
+                  "example": " "
                 },
                 "newPhoneNumber": {
                   "type": "string",
-                  "example": "9988xxxxxx"
+                  "example": " "
                 }
               }
             }
