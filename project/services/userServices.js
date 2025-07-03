@@ -254,13 +254,14 @@ async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
     if (!decoded || !decoded.userId) {
       return { success: false, message: 'Invalid access token' };
     }
+
   const user = await User.findById(decoded.userId);
   if (!user) return { success: false, message: 'User not found' };
 
   const existing = await User.findOne({
     phoneNumber: newPhoneNumber,
     isVerified: true,
-    _id: { $ne: userId }
+    _id: { $ne: decoded.userId }
   });
   if (existing) return { success: false, message: 'Phone number already in use' };
 
