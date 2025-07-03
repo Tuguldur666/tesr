@@ -247,19 +247,23 @@ async function verifyCurrentNumberAndSendOtpToNew(accessToken, enteredOtp, newPh
   };
 }
 /////////////////////////////////////////////////////////////////////////////////
-
 async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
   const { userId, error } = verifyToken(accessToken);
-  if (error) return { success: false, message: 'Invalid access token' };
+  if (error) {
+    return { success: false, message: 'Invalid access token' };
+  }
 
   const user = await User.findById(userId);
-  if (!user) return { success: false, message: 'User not found' };
+  if (!user) {
+    return { success: false, message: 'User not found' };
+  }
 
   const existing = await User.findOne({
     phoneNumber: newPhoneNumber,
     isVerified: true,
-    _id: { $ne: userId }    
+    _id: { $ne: userId }
   });
+
   if (existing) {
     return { success: false, message: 'Phone number already in use' };
   }
@@ -269,22 +273,32 @@ async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
     code: enteredOtp,
     authType: 'change_new'
   });
+
   if (!isValidOtp.success) {
     return { success: false, message: 'Invalid OTP for new number' };
   }
 
-  user.phoneNumber = newPhoneNumber;
-  await user.save();
+  try {
+    user.phoneNumber = newPhoneNumber;
+    await user.save();
 
-  return {
-    success: true,
-    message: 'Phone number updated successfully',
-    user: {
-      id: user._id,
-      name: user.name,
-      phoneNumber: user.phoneNumber
-    }
-  };
+    return {
+      success: true,
+      message: 'Phone number updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        phoneNumber: user.phoneNumber
+      }
+    };
+  } catch (err) {
+    console.error('Failed to update phone number:', err);
+    return {
+      success: false,
+      message: 'Failed to update phone number',
+      error: err.message
+    };
+  }
 }
 
 
