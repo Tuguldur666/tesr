@@ -255,12 +255,20 @@ async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
   const user = await User.findById(userId);
   if (!user) return { success: false, message: 'User not found' };
 
+  const existing = await User.findOne({
+    phoneNumber: newPhoneNumber,
+    isVerified: true,
+    _id: { $ne: userId }    
+  });
+  if (existing) {
+    return { success: false, message: 'Phone number already in use' };
+  }
+
   const isValidOtp = await otp.verifyChangePhoneOtp({
     userId: user._id,
     code: enteredOtp,
     authType: 'change_new'
   });
-
   if (!isValidOtp.success) {
     return { success: false, message: 'Invalid OTP for new number' };
   }
@@ -278,6 +286,7 @@ async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
     }
   };
 }
+
 
 module.exports = {
   registerUser,
