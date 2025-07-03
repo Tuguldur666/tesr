@@ -52,7 +52,6 @@ async function sendMessage(userId, phoneNumber, code, authType) {
 
 async function verifyUserByOtp({ phoneNumber, code }) {
   try {
-    // Find the latest unverified user with this phone number
     const user = await User.findOne({ phoneNumber }).sort({ createdAt: -1 });
 
     if (!user) {
@@ -194,7 +193,67 @@ async function resetPass({ phoneNumber, newPassword }) {
   }
 }
 
+/////////////////////////////////////////
+
+async function verifyChangePhoneOtp({ userId, code, authType }) {
+  if (!['change_old', 'change_new'].includes(authType)) {
+    return { success: false, message: 'Invalid authType for phone change' };
+  }
+
+  try {
+    const otpEntry = await Otp.findOne({
+      userId,
+      code,
+      authType,
+    });
+
+    if (!otpEntry) {
+      return { success: false, message: 'Invalid or expired OTP' };
+    }
+
+    await Otp.deleteMany({ userId, authType });
+
+    return {
+      success: true,
+      message: 'OTP verified successfully',
+    };
+  } catch (err) {
+    console.error('Error verifying phone change OTP:', err);
+    return { success: false, message: 'Failed to verify OTP' };
+  }
+}
+/////////////////////////////////////////////////////////
+
+async function sendChangePhoneOtp(userId, phoneNumber, authType) {
+  if (!['change_old', 'change_new'].includes(authType)) {
+    return { success: false, message: 'Invalid authType for phone change' };
+  }
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const sent = await sendMessage(userId, phoneNumber, otpCode, authType);
+
+  if (!sent) {
+    return {
+      success: false,
+      message: `Failed to send OTP to ${authType === 'change_old' ? 'current' : 'new'} phone`,
+    };
+  }
+
+  return {
+    success: true,
+    message: `OTP sent to ${authType === 'change_old' ? 'current' : 'new'} phone number`,
+  };
+}
 
 
-module.exports = {verifyUserByOtp,sendMessage,forgotPassword,verifyResetOtp,resetPass}
+
+module.exports = {
+  verifyUserByOtp,
+  sendMessage,
+  forgotPassword,
+  verifyResetOtp,
+  resetPass,
+  verifyChangePhoneOtp,
+  sendChangePhoneOtp
+}
 

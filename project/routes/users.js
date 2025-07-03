@@ -13,6 +13,12 @@ router.post('/updateUsername', userController.updateUsername);
 ////////////////////////////////////
 router.get('/getuser', userController.getUserData);
 ////////////////////////////////////
+router.post('/initiatePhoneNumber', userController.initiatePhoneNumberChange);
+////////////////////////////////////
+router.post('/verifyCurrentNumber', userController.verifyCurrentNumberAndSendOtpToNew);
+////////////////////////////////////
+router.post('/confirmNewPhoneNumber', userController.confirmNewPhoneNumber);
+////////////////////////////////////
 
 
 

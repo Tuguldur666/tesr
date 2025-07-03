@@ -232,6 +232,141 @@ exports.getUserData = async (req, res) => {
 };
 //////////////////////////////////////////////////////////////////////////
 
+exports.initiatePhoneNumberChange = async (req, res) => {
+  /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Initiate phone number change'
+    #swagger.description = 'Sends an OTP to the user’s current phone number to confirm ownership.'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
+  */
+
+ const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+  const accessToken = authHeader.split(' ')[1];
+
+  try {
+    const result = await service.initiatePhoneNumberChange(accessToken);
+
+    if (!result.success) {
+      const status = result.message === 'Invalid access token' ? 401 : 400;
+      return res.status(status).json(result);
+    }
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('initiatePhoneNumberChange error:', err);
+    return res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable. Please try again later.',
+    });
+  }
+};
+
+/////////////////////////////////////////////////////////////////////////////
+
+exports.verifyCurrentNumberAndSendOtpToNew = async (req, res) => {
+  /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Verify old phone OTP and send OTP to new phone'
+    #swagger.description = 'Verifies OTP on old number, then sends OTP to new number.'
+    #swagger.parameters['Authorization'] = { in: 'header', name: 'Authorization', required: true, description: 'Bearer token' }
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      schema: {
+        otp: " ",
+        newPhoneNumber: " "
+      }
+    }
+  */
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+  const accessToken = authHeader.split(' ')[1];
+
+  const { otp, newPhoneNumber } = req.body;
+  if (!otp || !newPhoneNumber) {
+    return res.status(422).json({ success: false, message: 'otp and newPhoneNumber are required' });
+  }
+
+  try {
+    const result = await service.verifyCurrentNumberAndSendOtpToNew(
+      accessToken,
+      otp,
+      newPhoneNumber
+    );
+
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (err) {
+    console.error('Error in verifyCurrentNumberAndSendOtpToNew controller:', err);
+    return res
+      .status(503)
+      .json({ success: false, message: 'Service temporarily unavailable', error: err.message });
+  }
+};
+
+////////////////////////////////////////////////////////////////
+
+exports.confirmNewPhoneNumber = async(req, res) => 
+{
+      /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Update current phone number'
+    #swagger.description = 'Updates the phone number.'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
+      #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      schema: {
+        otp: " ",
+        newPhoneNumber: " "
+      }
+    }
+
+  */
+
+  const authHeader = req.headers.authorization;
+  const { otp , newPhoneNumber } = req.body;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+
+  if (!otp || !newPhoneNumber) {
+    return res.status(422).json({ success: false, message: 'Field is missing' });
+  }
+
+  const accessToken = authHeader.split(' ')[1];
+
+  try {
+    const result = await service.confirmNewPhoneNumber({ accessToken, newPhoneNumber , otp });
+    return res.status(result.status || 200).json(result);
+  } catch (err) {
+    console.error('Error in confirm new number controller:', err);
+    return res.status(503).json({ success: false, message: 'Service temporarily unavailable' , error: err.message});
+  }
+
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 
