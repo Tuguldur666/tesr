@@ -373,4 +373,92 @@ exports.confirmNewPhoneNumber = async (req, res) => {
 
 
 
+exports.verifyCurrentPassword = async (req, res) => {
+
+    /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Update current phone number'
+    #swagger.description = 'Updates the phone number.'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      schema: {
+        currentPassword:" "
+
+      }
+    }
+  */
+
+  const authHeader = req.headers.authorization;
+  const { currentPassword } = req.body;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+
+  if (!currentPassword){ 
+    return res.status(422).json({ success: false, message: 'Field is missing' });
+  }
+
+  const accessToken = authHeader.split(' ')[1];
+
+
+  const result = await  service.verifyCurrentPassword(accessToken,currentPassword)
+  res.status(result.success ? 200 : 400).json(result);
+
+}
+
+/////////////////////////////////////////////////////////
+
+
+exports.changeToNewPassword = async (req, res) => {
+
+      /*
+    #swagger.tags = ['Users']
+    #swagger.summary = 'Update current phone number'
+    #swagger.description = 'Updates the phone number.'
+    #swagger.parameters['Authorization'] = {
+      in: 'header',
+      name: 'Authorization',
+      required: true,
+      description: 'Bearer access token',
+      type: 'string',
+      example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    }
+    #swagger.parameters['body'] = {
+      in: 'body',
+      required: true,
+      schema: {
+        newPassword:" "
+
+      }
+    }
+  */
+
+  const authHeader = req.headers.authorization;
+  const { newPassword } = req.body;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Access token required' });
+  }
+
+  if (!newPassword){ 
+    return res.status(422).json({ success: false, message: 'Field is missing' });
+  }
+
+  const accessToken = authHeader.split(' ')[1];
+
+  const result = await service.changeToNewPassword(accessToken, newPassword);
+  res.status(result.success ? 200 : 400).json(result);
+
+};
+
 

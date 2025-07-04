@@ -292,6 +292,82 @@ async function confirmNewPhoneNumber(accessToken, newPhoneNumber, enteredOtp) {
   };
 }
 
+///////////////////////////////////////
+
+
+
+async function verifyCurrentPassword(accessToken, currentPassword) {
+  if (!accessToken || !currentPassword) {
+    return {
+      success: false,
+      message: 'Access token and current password are required',
+    };
+  }
+
+  const { userId, error } = verifyToken(accessToken);
+  if (error) {
+    return { success: false, message: 'Invalid access token' };
+  }
+
+  try {
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return { success: false, message: 'Current password is incorrect' };
+    }
+
+    return {
+      success: true,
+      message: 'Current password verified. You may now change your password.',
+    };
+  } catch (err) {
+    console.error('Error verifying current password:', err);
+    return {
+      success: false,
+      message: 'Password verification failed. Please try again later.',
+    };
+  }
+}
+////////////////////////////////////////////////////////////////////////////
+
+async function changeToNewPassword(accessToken, newPassword) {
+  if (!accessToken || !newPassword) {
+    return {
+      success: false,
+      message: 'Access token and new password are required',
+    };
+  }
+
+  const { userId, error } = verifyToken(accessToken);
+  if (error) return { success: false, message: 'Invalid access token' };
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return {
+      success: true,
+      message: 'Password updated successfully',
+    };
+  } catch (err) {
+    console.error('Error changing to new password:', err);
+    return {
+      success: false,
+      message: 'Failed to update password',
+    };
+  }
+}
+
+
 
 module.exports = {
   registerUser,
@@ -301,5 +377,7 @@ module.exports = {
   updateUsername,
   initiatePhoneNumberChange,
   verifyCurrentNumberAndSendOtpToNew,
-  confirmNewPhoneNumber
+  confirmNewPhoneNumber,
+  verifyCurrentPassword,
+  changeToNewPassword
 };

@@ -19,6 +19,10 @@ router.post('/verifyCurrentNumber', userController.verifyCurrentNumberAndSendOtp
 ////////////////////////////////////
 router.post('/confirmNewPhoneNumber', userController.confirmNewPhoneNumber);
 ////////////////////////////////////
+router.post('/verifyCurrentPassword', userController.verifyCurrentPassword);
+////////////////////////////////////
+router.post('/changePassword', userController.changeToNewPassword);
+////////////////////////////////////
 
 
 
